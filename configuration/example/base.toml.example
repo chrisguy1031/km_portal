@@ -1,103 +1,57 @@
 # core/config/base.toml
 [app]
-title = "Nexus Cube"
-description = "Nexus Cube Knowledge Base API Service"
-version = "1.0.0"
+service_name = "main-service"
+service_version = "1.0.0"
+service_host = "0.0.0.0"
+service_port = 18090
+title = "KM Portal"
+description = "KM Portal Service"
 debug = true
-metadb = "postgresql"
-file_storage = "/home/ubuntu/NexusCube/knowledge_base"
-upload_workers = 10
+file_storage = "/home/ubuntu/km_portal/files/"
 parser_workers = 2
-parser_check_interval = 120
+parser_check_interval = 300
 
 [app.log]
 level = "DEBUG"
-dir = "/home/ubuntu/NexusCube/logs/"
+dir = "/home/ubuntu/km_portal/logs/"
 rotation = "100 MB"
 retention = "10 days"
-
-[mysql]
-username = "cube"
-password = "cube12345678"
-host = "localhost"
-port = 3306
-database = "cube_db"
-
-[postgresql]
-username = "cube"
-password = "cube12345678"
-host = "localhost"
-port = 5432
-database = "cube_db"
-db_schema = "cube"
-
-[sqlalchemy]
-echo = false
-pool_size = 10
-pool_timeout = 60
-max_overflow = 20
-pool_pre_ping = true
-pool_use_lifo = true
-pool_recycle = 1800
-
-[eslog]
-hosts = ["http://localhost:9201"]
-username = "elastic"
-password = "KsVEZ-KhNMVi9HHdjyTx"
-index = "filebeat-kblogs-*"
-
-[embed]
-service_name = "embedding-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18091
-max_tokens = 1024
-timeout = 300
-max_retries = 3
-cache_dir = "/home/ubuntu/cached_models/"
-
-[llm]
-service_name = "llm-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18092
-max_tokens = 8192
-temperature = 0.7
-top_p = 1.0
-top_k = 0
-timeout = 300
-frequency_penalty = 0.0
-presence_penalty = 0.0
-
-[reranker]
-service_name = "reranker-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18093
-cache_dir = "/home/ubuntu/cached_models/"
-timeout = 300
+api_log_enabled = true
 
 [vlm]
 service_name = "vlm-service"
 service_version = "1.0.0"
 service_host = "0.0.0.0"
-service_port = 18094
+service_port = 18092
 timeout = 300
+model_name = "qwen3-vl-plus"
+provider = "api_qwen"
+api_endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+max_tokens = 8192
+temperature = 0.0
+
+[llm]
+service_name = "llm-service"
+service_version = "1.0.0"
+service_host = "0.0.0.0"
+service_port = 18091
+timeout = 300
+model_name = "deepseek-chat"
+provider = "api_deepseek"
+api_endpoint = "https://api.deepseek.com/v1"
+max_tokens = 8192
+temperature = 0.0
 
 [parser]
 service_name = "parser-service"
 service_version = "1.0.0"
 service_host = "0.0.0.0"
-service_port = 18095
+service_port = 18093
 timeout = 300
 
 [parser.tokenizer]
 en = "/home/ubuntu/models/embedding/bge-small-en-v1.5"
 zh = "/home/ubuntu/models/embedding/bge-base-zh-v1.5"
-
-[jieba]
-custom_dict_path = "/home/ubuntu/NexusCube/configuration/custom_dict.txt"
-stop_words_path = "/home/ubuntu/NexusCube/configuration/stopwords.txt"
 
 [prompt]
 image2text = "SYSTEM/image2text"
