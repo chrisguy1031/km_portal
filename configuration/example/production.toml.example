@@ -1,0 +1,9 @@
+# core/config/production.toml
+[app]
+debug = false
+
+[app.log]
+level = "INFO"
+
+[llm]
+temperature = 0.3

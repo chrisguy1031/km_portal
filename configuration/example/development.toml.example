@@ -1,0 +1,9 @@
+# core/config/development.toml
+[app]
+debug = true
+
+[app.log]
+level = "DEBUG"
+
+[llm]
+temperature = 0.8

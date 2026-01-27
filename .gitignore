@@ -1,0 +1,43 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+
+# Sensitive configuration files
+*.secret.toml
+*.key
+*.token
+*.pem
+*.cert
+
+# Development files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# IDE directories
+.idea/
+.vscode/
+
+# Project-generated files
+knowledge_base/
+kbot_files/
+settings.toml
+local_model_cache/
+nacos-data/
+
+# configuration files
+configuration/*.json
+*.toml
