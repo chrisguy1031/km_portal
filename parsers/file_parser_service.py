@@ -79,6 +79,8 @@ class ParseService:
                 for file in pending_files:
                     try:
                         logger.debug(f"将 Asset {file.asset_id} 加入队列")
+                        logger.info(f"更新 Asset {file.asset_id} 的状态为正在处理")
+                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="P")
                         await self.file_queue.put((file))
                         processed_count += 1
                         

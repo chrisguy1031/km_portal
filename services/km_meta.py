@@ -104,7 +104,6 @@ class KMFileMetaService:
             logger.warning("没有找到待处理的 asset 元数据")
             return []
 
-        sp_client = None
         results = []
 
         for item in asset_meta:
@@ -134,3 +133,26 @@ class KMFileMetaService:
 
         logger.info(f"解析 asset 元数据完成，共解析 {len(results)} 个 asset")
         return results
+    
+    async def update_asset_metadata(self, asset_id: str, processed_flag: str):
+        """更新 asset 元数据"""
+        user = os.getenv("KM_USER")
+        password = os.getenv("KM_PASSWORD")
+        url = os.getenv("KM_URL")
+        if not url:
+            raise ValueError("请设置 KM_URL 环境变量")
+        if not user or not password:
+            raise ValueError("请设置 KM_USER 和 KM_PASSWORD 环境变量")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {base64.b64encode(f'{user}:{password}'.encode('utf-8')).decode('utf-8')}"
+        }
+        
+        request_url = f"{url}?asset_id={asset_id}&processed={processed_flag}"
+        try:
+            response = requests.put(request_url, headers=headers)
+            response.raise_for_status()
+            logger.info(f"成功更新 asset {asset_id} 的 processed 标志为 {processed_flag}")
+        except requests.RequestException as e:
+            logger.error(f"更新 asset {asset_id} 元数据时发生错误: {e}")
+            raise

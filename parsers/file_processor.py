@@ -7,6 +7,7 @@ from .file_params import ParserParams, AssetMeta
 from clients.parser_client import CallParser
 from clients.model_client import CallModel
 from services.sharepoint import get_sharepoint_client, SharePointClient
+from services.km_meta import KMFileMetaService
 from core.config.settings import get_parser_config, get_llm_config
 
 
@@ -15,6 +16,7 @@ class FileProcessor:
     """文件处理类，负责文件解析和处理的业务逻辑"""
     def __init__(self):
         self.llm_model = get_llm_config().model_name
+        self.meta_service = KMFileMetaService()
 
 
     async def process_asset(self, item: AssetMeta):
@@ -32,15 +34,26 @@ class FileProcessor:
         second_sp_url = item.second_sp_url
 
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
-        if first_sp_url:
-            file_name, html = await self._download_and_parse_file(first_sp_url)
-            await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
-            logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
+        try:
+            if first_sp_url:
+                file_name, html = await self._download_and_parse_file(first_sp_url)
+                await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
-        if second_sp_url:
-            file_name, html = await self._download_and_parse_file(second_sp_url)
-            await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
-            logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
+            if second_sp_url:
+                file_name, html = await self._download_and_parse_file(second_sp_url)
+                await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
+            
+            # 更新 asset 元数据为已处理
+            await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y")
+            logger.info(f"asset {asset_id} 处理完成")
+        except Exception as e:
+            logger.error(f"处理 asset {asset_id} 时发生错误: {e}")
+            # 更新 asset 元数据为处理失败
+            await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
+
+
 
     def _get_filename_from_response(self, response) -> str:
         """
@@ -171,9 +184,6 @@ class FileProcessor:
         # 4. 上传 pdf 到 Sharepoint
         sp_client.upload_pdf_string(file_name=new_file_name, file_content=pdf_bytes)
         logger.info(f"成功上传文件 {file_name} 到 Sharepoint")
-
-        # 5. 反写处理标记到数据库
-        # await self._update_asset_processed_flag(asset_id, processed=True)
 
     async def _get_sehub_sp_client(self) -> SharePointClient:
         """获取 SEHUB 的 SharePoint 客户端"""

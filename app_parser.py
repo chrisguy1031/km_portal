@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
     
     start_time = time.time()
     logger.info(f"正在启动 [{SERVICE_NAME}] | PID: {os.getpid()} | 时间: {datetime.now()}")
-    
+    logger.debug(f"解析模型路径: 英文={config.tokenizer.en}, 中文={config.tokenizer.zh}")
     try:
         # 2. 初始化解析服务 (保持原样，直接实例化)
         doc_parser_service = ParserService(

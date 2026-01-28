@@ -70,7 +70,6 @@ class ParserConfig(BaseModel):
     service_host: str = Field(default="0.0.0.0")
     service_port: int = Field(default=18093, ge=1, le=65535)
     timeout: int = Field(default=300, ge=10, le=1800)
-    tokenizer: TokenizerConfig = TokenizerConfig()
     chunk_size: int = Field(default=512, description="分块大小")
     overlap: int = Field(default=50, description="分块重叠大小")
     min_chunk_len: int = Field(default=10, description="最小分块长度")
@@ -79,6 +78,7 @@ class ParserConfig(BaseModel):
     ocr_engine: str | None = Field(default=None, description="OCR引擎名称")
     images_scale: float = Field(default=2.0, description="图片缩放比例")
     use_vlm: bool = Field(default=False, description="是否使用VLM生成图片描述")
+    tokenizer: TokenizerConfig = TokenizerConfig()
 
 
 class Settings(BaseSettings):
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     
     # 环境配置 - 支持环境变量覆盖
     environment: str = "development"
-    config_dir: str = "./core/config"
+    config_dir: str = "../configuration"
     
     # 各模块配置
     app: AppConfig = AppConfig()
@@ -106,8 +106,8 @@ class Settings(BaseSettings):
     def create(cls, toml_path: Path | None = None) -> "Settings":
         """创建配置实例 - 支持环境变量切换"""
         # 首先检查环境变量
-        env_from_env = os.getenv("CUBE_ENVIRONMENT")
-        config_dir_from_env = os.getenv("CUBE_CONFIG_DIR")
+        env_from_env = os.getenv("ENVIRONMENT")
+        config_dir_from_env = os.getenv("CONFIG_DIR")
         
         # 创建临时实例来获取其他配置
         temp_settings = cls()

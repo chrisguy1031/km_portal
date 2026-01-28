@@ -451,68 +451,90 @@ class SharePointClient:
             logger.error(f"❌ HTML 字符串上传异常: {e}")
             return False
         
-    def _get_share_id(self, url: str) -> str:
-        """将共享链接转换为 Graph 要求的 Share ID (u! 格式)"""
-        base_url = url.split('?')[0] # 移除查询参数
-        b64 = base64.urlsafe_b64encode(base_url.encode("utf-8")).decode("ascii")
-        return "u!" + b64.rstrip("=")
+    # def _get_share_id(self, url: str) -> str:
+    #     """将共享链接转换为 Graph 要求的 Share ID (u! 格式)"""
+    #     base_url = url.split('?')[0] # 移除查询参数
+    #     b64 = base64.urlsafe_b64encode(base_url.encode("utf-8")).decode("ascii")
+    #     return "u!" + b64.rstrip("=")
 
-    def _extract_from_share_link(self, url: str) -> str:
-        """类型1: Share ID 链接 -> 使用官方 /shares/ 接口"""
-        share_id = self._get_share_id(url)
-        # 共享链接最稳健的下载方式，不需要 site_id 和物理路径
-        return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
+    # def _extract_from_share_link(self, url: str) -> str:
+    #     """类型1: Share ID 链接 -> 使用官方 /shares/ 接口"""
+    #     share_id = self._get_share_id(url)
+    #     # 共享链接最稳健的下载方式，不需要 site_id 和物理路径
+    #     return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
 
-    def _extract_from_copy_link(self, url: str) -> str:
-        """针对 Doc.aspx 类型的链接，利用 sourcedoc UUID 定位"""
-        # 提取 UUID: {05DA444C-097C-428D-A9B0-C6F8F544EBE6}
-        match = re.search(r'sourcedoc=\{?([A-F0-9-]+)\}?', url, re.I)
-        if match:
-            doc_id = match.group(1)
-            # 注意：使用 /items/{id} 而不是 /root:/路径
-            return f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drive/items/{doc_id}/content"
+    # def _extract_from_copy_link(self, url: str) -> str:
+    #     """针对 Doc.aspx 类型的链接，利用 sourcedoc UUID 定位"""
+    #     # 提取 UUID: {05DA444C-097C-428D-A9B0-C6F8F544EBE6}
+    #     match = re.search(r'sourcedoc=\{?([A-F0-9-]+)\}?', url, re.I)
+    #     if match:
+    #         doc_id = match.group(1)
+    #         # 注意：使用 /items/{id} 而不是 /root:/路径
+    #         return f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drive/items/{doc_id}/content"
         
-        # 如果拿不到 UUID，说明逻辑有问题，需要检查正则
-        return ""
+    #     # 如果拿不到 UUID，说明逻辑有问题，需要检查正则
+    #     return ""
 
-    def _extract_from_simple_url(self, url: str) -> str:
-        """类型2: 简单路径 URL -> 剥离站点/库名冗余"""
-        # 1. 先彻底解码，消除双重编码隐患
-        clean_path = unquote(url.split('?')[0])
+    # def _extract_from_simple_url(self, url: str) -> str:
+    #     """类型2: 简单路径 URL -> 剥离站点/库名冗余"""
+    #     # 1. 先彻底解码，消除双重编码隐患
+    #     clean_path = unquote(url.split('?')[0])
         
-        # 2. 剥离冗余 (KM_dev/Shared Documents/)
-        # 目标是得到：Document/filename.docx
-        relative_path = ""
-        if '/Shared Documents/' in clean_path:
-            relative_path = clean_path.split('/Shared Documents/')[-1]
-        elif '/Shared Document/' in clean_path:
-            relative_path = clean_path.split('/Shared Document/')[-1]
-        else:
-            # 兜底：取最后一段
-            relative_path = clean_path.split('/')[-1]
+    #     # 2. 剥离冗余 (KM_dev/Shared Documents/)
+    #     # 目标是得到：Document/filename.docx
+    #     relative_path = ""
+    #     if '/Shared Documents/' in clean_path:
+    #         relative_path = clean_path.split('/Shared Documents/')[-1]
+    #     elif '/Shared Document/' in clean_path:
+    #         relative_path = clean_path.split('/Shared Document/')[-1]
+    #     else:
+    #         # 兜底：取最后一段
+    #         relative_path = clean_path.split('/')[-1]
 
-        # 3. 规范化重新编码，但保留路径斜杠
-        encoded_path = quote(relative_path.lstrip('/'), safe='/:')
-        return f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{self.drive_id}/root:/{encoded_path}:/content"
+    #     # 3. 规范化重新编码，但保留路径斜杠
+    #     encoded_path = quote(relative_path.lstrip('/'), safe='/:')
+    #     return f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{self.drive_id}/root:/{encoded_path}:/content"
+
+    # def get_download_url(self, sharepoint_url: str) -> str:
+    #     """主入口"""
+    #     if not sharepoint_url: return ""
+        
+    #     # 解码一次防止双重编码
+    #     decoded_url = unquote(sharepoint_url)
+        
+    #     # 优先级 1: 包含 Doc.aspx 或 sourcedoc 的链接 (复制出来的编辑链接)
+    #     if 'Doc.aspx' in decoded_url or 'sourcedoc=' in decoded_url:
+    #         return self._extract_from_copy_link(sharepoint_url)
+        
+    #     # 优先级 2: 包含 /Shared Documents/ 的直接路径链接
+    #     elif '/Shared Documents/' in decoded_url:
+    #         return self._extract_from_simple_url(sharepoint_url)
+        
+    #     # 优先级 3: 真正的 Share Link (u! 开头的 Base64)
+    #     else:
+    #         return self._extract_from_share_link(sharepoint_url)
 
     def get_download_url(self, sharepoint_url: str) -> str:
-        """主入口"""
-        if not sharepoint_url: return ""
-        
-        # 解码一次防止双重编码
-        decoded_url = unquote(sharepoint_url)
-        
-        # 优先级 1: 包含 Doc.aspx 或 sourcedoc 的链接 (复制出来的编辑链接)
-        if 'Doc.aspx' in decoded_url or 'sourcedoc=' in decoded_url:
-            return self._extract_from_copy_link(sharepoint_url)
-        
-        # 优先级 2: 包含 /Shared Documents/ 的直接路径链接
-        elif '/Shared Documents/' in decoded_url:
-            return self._extract_from_simple_url(sharepoint_url)
-        
-        # 优先级 3: 真正的 Share Link (u! 开头的 Base64)
-        else:
-            return self._extract_from_share_link(sharepoint_url)
+        """
+        通用转换逻辑：将任何 SharePoint 链接转换为 Graph 下载链接
+        """
+        if not sharepoint_url:
+            return ""
+
+        # 1. 预处理：去除多余空格，但不进行 unquote
+        # 注意：保持原始 URL 编码状态进行 Base64 转换是官方推荐做法
+        target_url = sharepoint_url.strip()
+
+        # 2. 生成通用 Share ID (u! 格式)
+        # 这种方式对 'Doc.aspx'、'Shared%20Documents' 以及 'Share ID' 链接全部有效
+        url_bytes = target_url.encode("utf-8")
+        base64_bytes = base64.urlsafe_b64encode(url_bytes)
+        base64_string = base64_bytes.decode("ascii").rstrip("=")
+        share_id = "u!" + base64_string
+
+        # 3. 返回 API 地址
+        # 使用 /driveItem/content 会直接重定向到文件的二进制下载流
+        return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
 
 """获取 SharePoint 客户端实例（惰性初始化）"""
 
@@ -534,4 +556,3 @@ def get_sharepoint_client() -> SharePointClient:
 
         _sp_client_instance = SharePointClient(TENANT_ID, CLIENT_ID, CLIENT_SECRET, SITE_ID, DRIVE_ID)
     return _sp_client_instance
-
