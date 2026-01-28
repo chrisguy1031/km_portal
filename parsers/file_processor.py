@@ -144,14 +144,22 @@ class FileProcessor:
         # 1.给 html 增加 asset 元数据
         html = f"""
         <div>
-            <span style="color: #31c0ff;font-size: 1.4rem;text-decoration: underline;">Original Asset URL: {original_file_url}</span><span style="color: red;">VPN Required</span>
-            <h2>Asset Title: {asset_title}</h2>
-            <p>Asset Details: {asset_details}</p>
-            <p>Solution Briefing: {solution_briefing}</p>
+            <div>
+                <span style="font-size: 1.2rem;">Original Asset URL: </span>
+                <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
+                <span style="color: red;"> (VPN Required)</span>
+            </div>
+            <h2>{asset_title}</h2>
+            <p>Asset Details:</p>
+            <p>{asset_details}</p>
+            <p>Solution Briefing:</p>
+            <p>{solution_briefing}</p>
         </div>
         {file_content}
         <div>
-            <span style="color: #31c0ff;font-size: 1.4rem;text-decoration: underline;">Original Asset URL: {original_file_url}</span><span style="color: red;">VPN Required</span>
+            <span style="font-size: 1.2rem;">Original Asset URL: </span>
+            <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
+            <span style="color: red;"> (VPN Required)</span>
         </div>
         """
         # 2. 调用 LLM 将内容翻译为英文
@@ -177,9 +185,13 @@ class FileProcessor:
 
         # 4. 获取 SEHUB 的 SharePoint 客户端
         sp_client = await self._get_sehub_sp_client()
-        
-        file_ext = file_name.split(".")[-1]
-        new_file_name = file_name.replace(f".{file_ext}", ".pdf")
+
+        # URL 解码文件名
+        from urllib.parse import unquote
+        decoded_file_name = unquote(file_name)
+
+        file_ext = decoded_file_name.split(".")[-1]
+        new_file_name = decoded_file_name.replace(f".{file_ext}", ".pdf")
 
         # 4. 上传 pdf 到 Sharepoint
         sp_client.upload_pdf_string(file_name=new_file_name, file_content=pdf_bytes)

@@ -41,6 +41,15 @@
             align-items: center;
         }
 
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
         .pagination {
             display: flex;
             gap: 10px;
@@ -141,6 +150,15 @@
         <div class="header">
             <h1>Assets 元数据</h1>
             <div class="controls">
+                <div>
+                    <label for="processedFlag" style="font-size: 14px; color: #555; margin-right: 8px;">处理状态:</label>
+                    <select id="processedFlag" onchange="loadAssets()">
+                        <option value="N">未处理</option>
+                        <option value="Y">已处理</option>
+                        <option value="P">处理中</option>
+                        <option value="F">处理失败</option>
+                    </select>
+                </div>
                 <div class="pagination">
                     <button onclick="prevPage()">上一页</button>
                     <span class="page-info" id="pageInfo">第 1 页</span>
@@ -159,10 +177,11 @@
 
         async function loadAssets() {
             const content = document.getElementById('content');
+            const processedFlag = document.getElementById('processedFlag').value;
             content.innerHTML = '<div class="loading">加载中...</div>';
 
             try {
-                const response = await fetch(`${API_BASE}?offset=${currentPage * pageSize}&limit=${pageSize}`);
+                const response = await fetch(`${API_BASE}?offset=${currentPage * pageSize}&limit=${pageSize}&processed_flag=${processedFlag}`);
                 const data = await response.json();
 
                 if (!response.ok) {
@@ -205,6 +224,9 @@
                                     : 'N/A'}
                             </span>
                         </div>
+                        <div style="margin-top: 15px;">
+                            <button onclick="undoAsset('${escapeHtml(asset.asset_id)}')" style="background: #dc3545;">撤销</button>
+                        </div>
                     </div>
                 `).join('');
 
@@ -235,6 +257,29 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        async function undoAsset(assetId) {
+            if (!confirm(`确定要撤销 Asset ${assetId} 的处理状态吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/km-portal/update-asset?asset_id=${encodeURIComponent(assetId)}`, {
+                    method: 'PUT'
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || '撤销失败');
+                }
+
+                const data = await response.json();
+                alert(data.message || '撤销成功');
+                loadAssets();
+            } catch (error) {
+                alert(`撤销失败: ${error.message}`);
+            }
         }
 
         // 初始加载

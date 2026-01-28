@@ -8,11 +8,11 @@ from services.sharepoint import get_sharepoint_client
 router = APIRouter(prefix="/km-portal")
 
 @router.get("/assets")
-async def get_assets(offset: int = 0, limit: int = 10):
+async def get_assets(offset: int = 0, limit: int = 10, processed_flag: str = "N"):
     """获取 asset 元数据"""
     try:
         meta_service = KMFileMetaService()
-        results = await meta_service.retrieve_asset_metadata(offset=offset, limit=limit, processed=False)
+        results = await meta_service.retrieve_asset_metadata(offset=offset, limit=limit, processed_flag=processed_flag)
 
 
         return [{
@@ -139,5 +139,15 @@ async def download_file(download_url: str):
             }
         )
 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.put("/update-asset")
+async def update_asset(asset_id: str):
+    """更新 Asset 处理状态"""
+    try:
+        meta_service = KMFileMetaService()
+        await meta_service.update_asset_metadata(asset_id, processed_flag="N")
+        return {"message": "Asset 处理状态更新成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -7,7 +7,7 @@ from parsers.file_params import AssetMeta
 
 class KMFileMetaService:
     """文件元数据服务"""
-    async def _get_asset_meta_from_db(self, offset: int, limit: int, processed: bool) -> list[dict[str, Any]]:
+    async def _get_asset_meta_from_db(self, offset: int, limit: int, processed_flag: str) -> list[dict[str, Any]]:
         """从数据库获取 asset 元数据"""
         user = os.getenv("KM_USER")
         password = os.getenv("KM_PASSWORD")
@@ -20,7 +20,7 @@ class KMFileMetaService:
             "Content-Type": "application/json",
             "Authorization": f"Basic {base64.b64encode(f'{user}:{password}'.encode('utf-8')).decode('utf-8')}"
         }
-        processed_flag = "Y" if processed else "N"
+        processed_flag = processed_flag.upper()
         request_url = f"{url}?offset={offset}&limit={limit}&processed={processed_flag}"
         response = requests.get(request_url, headers=headers)
         metadata_response = response.json()
@@ -97,9 +97,9 @@ class KMFileMetaService:
         return result
 
 
-    async def retrieve_asset_metadata(self, offset: int = 0, limit: int = 5, processed: bool = False) -> list[AssetMeta]:
+    async def retrieve_asset_metadata(self, offset: int = 0, limit: int = 5, processed_flag: str = "N") -> list[AssetMeta]:
         """获取 asset 元数据，返回 asset 信息和下载路径"""
-        asset_meta = await self._get_asset_meta_from_db(offset=offset, limit=limit, processed=processed)
+        asset_meta = await self._get_asset_meta_from_db(offset=offset, limit=limit, processed_flag=processed_flag)
         if not asset_meta:
             logger.warning("没有找到待处理的 asset 元数据")
             return []
@@ -148,9 +148,13 @@ class KMFileMetaService:
             "Authorization": f"Basic {base64.b64encode(f'{user}:{password}'.encode('utf-8')).decode('utf-8')}"
         }
         
-        request_url = f"{url}?asset_id={asset_id}&processed={processed_flag}"
+        request_url = url
+        json_body = {
+            "asset_id": asset_id,
+            "processed": processed_flag
+        }
         try:
-            response = requests.put(request_url, headers=headers)
+            response = requests.put(request_url, headers=headers, json=json_body)
             response.raise_for_status()
             logger.info(f"成功更新 asset {asset_id} 的 processed 标志为 {processed_flag}")
         except requests.RequestException as e:
