@@ -131,14 +131,14 @@ class FileProcessor:
         # 1.给 html 增加 asset 元数据
         html = f"""
         <div>
-            <p>Asset Title: {asset_title}</p>
+            <span style="color: #31c0ff;font-size: 1.4rem;text-decoration: underline;">Original Asset URL: {original_file_url}</span><span style="color: red;">VPN Required</span>
+            <h2>Asset Title: {asset_title}</h2>
             <p>Asset Details: {asset_details}</p>
             <p>Solution Briefing: {solution_briefing}</p>
-            <p>Original Asset URL: {original_file_url}</p>
         </div>
         {file_content}
         <div>
-            <p>Original Asset URL: {original_file_url}</p>
+            <span style="color: #31c0ff;font-size: 1.4rem;text-decoration: underline;">Original Asset URL: {original_file_url}</span><span style="color: red;">VPN Required</span>
         </div>
         """
         # 2. 调用 LLM 将内容翻译为英文

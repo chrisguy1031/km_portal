@@ -79,7 +79,7 @@ def demo_usage():
     print(f"\n=== 5. 单文件下载 ===")
     total = len(documents)
     print(f"总文件数: {total}")
-    doc = documents[total-1] # 选择最后一个文件进行下载
+    doc = documents[total-2] # 选择最后一个文件进行下载
     file_name = doc['name']
     download_url = doc['download_url']
     print(f"文件名称: {file_name}")
@@ -87,7 +87,7 @@ def demo_usage():
     
     success = sp_client.download_file(
         sharepoint_url=download_url,
-        local_save_path="./file_name"
+        local_save_path=f"./{file_name}"
     )
     if success:
         print(f"✅ 文件 {file_name} 下载成功")
