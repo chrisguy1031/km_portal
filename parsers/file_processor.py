@@ -1,5 +1,6 @@
 from loguru import logger
 import io
+import os
 import json
 from weasyprint import HTML
 
@@ -35,38 +36,44 @@ class FileProcessor:
 
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
         try:
+            first_result = True
+            second_result = True
             if first_sp_url:
-                file_name, html = await self._download_and_parse_file(first_sp_url)
-                await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
-                logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
+                try:
+                    file_name, html = await self._download_and_parse_file(first_sp_url)
+                    await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                    logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
+
+                except Exception as e:
+                    logger.error(f"处理文件 {first_sp_url} 时发生错误: {e}")
+                    first_result = False
 
             if second_sp_url:
-                file_name, html = await self._download_and_parse_file(second_sp_url)
-                await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
-                logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
+                try:
+                    file_name, html = await self._download_and_parse_file(second_sp_url)
+                    await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                    logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
+                except Exception as e:
+                    logger.error(f"处理文件 {second_sp_url} 时发生错误: {e}")
+                    second_result = False
+
+            if not first_sp_url and not second_sp_url:
+                logger.warning(f"asset {asset_id} 没有有效文件 URL")
+                # 更新 asset 元数据为处理失败
+                await self._upload_file("", asset_title, asset_details, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
             
             # 更新 asset 元数据为已处理
-            await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y")
+            if first_result or second_result:
+                await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y")
+            else:
+                await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
+
             logger.info(f"asset {asset_id} 处理完成")
         except Exception as e:
             logger.error(f"处理 asset {asset_id} 时发生错误: {e}")
             # 更新 asset 元数据为处理失败
             await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
 
-
-
-    def _get_filename_from_response(self, response) -> str:
-        """
-        从 HTTP 响应头解析文件名 (Content-Disposition)
-        """
-        content_disposition = response.headers.get('Content-Disposition', '')
-        if 'filename=' in content_disposition:
-            # 解析类似: attachment; filename="Report.pdf"
-            import re
-            fname = re.findall('filename="?([^";]+)"?', content_disposition)
-            if fname:
-                return fname[0]
-        return "unknown_file"
     
     async def _download_and_parse_file(self, sp_url: str) -> tuple[str, str]:
         """异步下载并解析 Sharepoint 文件"""
@@ -78,6 +85,15 @@ class FileProcessor:
             msg = f"从 Sharepoint 下载文件 {sp_url} 失败"
             logger.error(msg)
             raise Exception(msg)
+
+        # 2. 获取文件扩展名
+        if not file_name:
+            raise Exception(f"从 Sharepoint 下载文件 {sp_url} 失败，文件名为空")
+        file_ext = os.path.splitext(file_name)[1]
+
+        if file_ext not in [".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".html", ".xhtml", ".md", ".asciidoc", ".csv", ".png", ".jpeg", ".tiff", ".bmp", ".webp", ".wav", ".mp3", ".vtt"]:
+            logger.error(f"文件 {file_name} 不是支持的文件类型 {file_ext}")
+            return file_name, ""
 
         # 解析
         html = await CallParser().call_doc_parser_service(
@@ -92,7 +108,7 @@ class FileProcessor:
             logger.error(msg)
             raise Exception(msg)
         
-        return file_name, html  # type: ignore
+        return file_name, html
 
     def _get_parser_params(self) -> ParserParams:
         """获取解析参数"""
