@@ -69,7 +69,7 @@ class ParseService:
         """检查数据库中的新 Asset 并加入队列"""
         try:
             logger.debug("正在检查数据库中的待处理的 Asset...")
-            pending_files = await self.meta_service.retrieve_asset_metadata(offset=0, limit=2)
+            pending_files = await self.meta_service.retrieve_asset_metadata(offset=0, limit=10, processed=False)
             logger.debug(f"从数据库中检索到 {len(pending_files)} 个待处理 Asset")
             
             if pending_files:

@@ -97,9 +97,9 @@ class KMFileMetaService:
         return result
 
 
-    async def retrieve_asset_metadata(self, offset: int = 0, limit: int = 5) -> list[AssetMeta]:
+    async def retrieve_asset_metadata(self, offset: int = 0, limit: int = 5, processed: bool = False) -> list[AssetMeta]:
         """获取 asset 元数据，返回 asset 信息和下载路径"""
-        asset_meta = await self._get_asset_meta_from_db(offset=offset, limit=limit, processed=False)
+        asset_meta = await self._get_asset_meta_from_db(offset=offset, limit=limit, processed=processed)
         if not asset_meta:
             logger.warning("没有找到待处理的 asset 元数据")
             return []

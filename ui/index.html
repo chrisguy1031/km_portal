@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KM Portal - 首页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 18px;
+            font-weight: 300;
+        }
+
+        .menu {
+            display: grid;
+            gap: 20px;
+        }
+
+        .menu-item {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .menu-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        }
+
+        .icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .menu-item:nth-child(2) .icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .info {
+            flex: 1;
+        }
+
+        .title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 5px;
+        }
+
+        .description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .arrow {
+            color: #999;
+            font-size: 24px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>KM Portal</h1>
+            <p class="subtitle">知识管理门户</p>
+        </div>
+
+        <nav class="menu">
+            <a href="/ui/assets.html" class="menu-item">
+                <div class="icon">📊</div>
+                <div class="info">
+                    <div class="title">Assets 元数据</div>
+                    <div class="description">查看和管理所有资产元数据信息</div>
+                </div>
+                <div class="arrow">→</div>
+            </a>
+
+            <a href="/ui/uploaded_files.html" class="menu-item">
+                <div class="icon">📁</div>
+                <div class="info">
+                    <div class="title">已上传文件</div>
+                    <div class="description">浏览和管理已上传到 SharePoint 的文件列表</div>
+                </div>
+                <div class="arrow">→</div>
+            </a>
+        </nav>
+
+        <footer>
+            <p>&copy; 2026 KM Portal. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>

@@ -14,6 +14,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi_offline import FastAPIOffline
 from loguru import logger
 
@@ -22,6 +23,7 @@ from core.config.settings import get_app_config
 from core.logger import LogConfig, LogManager
 from core.middleware.log_middleware import log_requests
 from parsers.file_parser_manger import FileParserManager
+from router import router
 
 # --- 环境初始化 ---
 ENV_PATH = Path(__file__).parent / ".env"
@@ -108,8 +110,11 @@ def create_app() -> FastAPI:
         # 4. 请求日志中间件
         app.middleware("http")(log_requests)
 
-        # 5. 路由注册
-        # app.include_router(router)
+        # 5. 静态文件挂载
+        app.mount("/ui", StaticFiles(directory=str(Path(__file__).parent / "ui")), name="ui")
+
+        # 6. 路由注册
+        app.include_router(router)
 
         return app
 
