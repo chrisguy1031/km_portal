@@ -48,6 +48,14 @@ service_version = "1.0.0"
 service_host = "0.0.0.0"
 service_port = 18093
 timeout = 300
+chunk_size = 512
+overlap = 50
+min_chunk_len = 10
+generate_picture_images = True
+do_ocr: bool = True
+ocr_engine = "tesseract"
+images_scale = 2.0
+use_vlm = True
 
 [parser.tokenizer]
 en = "/home/ubuntu/models/embedding/bge-small-en-v1.5"
