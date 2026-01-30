@@ -9,7 +9,7 @@ description = "KM Portal Service"
 debug = true
 file_storage = "/home/ubuntu/km_portal/files/"
 parser_workers = 2
-parser_check_interval = 300
+parser_check_interval = 3600
 
 [app.log]
 level = "DEBUG"
@@ -51,19 +51,12 @@ timeout = 300
 chunk_size = 512
 overlap = 50
 min_chunk_len = 10
-generate_picture_images = True
-do_ocr: bool = True
+generate_picture_images = true
+do_ocr = true
 ocr_engine = "tesseract"
 images_scale = 2.0
-use_vlm = True
+use_vlm = true
 
 [parser.tokenizer]
 en = "/home/ubuntu/models/embedding/bge-small-en-v1.5"
 zh = "/home/ubuntu/models/embedding/bge-base-zh-v1.5"
-
-[prompt]
-image2text = "SYSTEM/image2text"
-expand_synonyms = "SYSTEM/expand_synonyms"
-fulltext_optimization = "SYSTEM/fulltext_optimization"
-
-
