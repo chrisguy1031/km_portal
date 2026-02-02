@@ -202,11 +202,11 @@
                         </div>
                         <div class="field">
                             <span class="label">Asset Details:</span>
-                            <span class="value">${escapeHtml(asset.asset_details) || 'N/A'}</span>
+                            <span class="value">${truncateText(asset.asset_details, 200)}</span>
                         </div>
                         <div class="field">
                             <span class="label">Solution Briefing:</span>
-                            <span class="value">${escapeHtml(asset.solution_briefing) || 'N/A'}</span>
+                            <span class="value">${truncateText(asset.solution_briefing, 200)}</span>
                         </div>
                         <div class="field">
                             <span class="label">First SP URL:</span>
@@ -257,6 +257,15 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return 'N/A';
+            const escapedText = escapeHtml(text);
+            if (escapedText.length <= maxLength) {
+                return escapedText;
+            }
+            return escapedText.substring(0, maxLength) + '...';
         }
 
         async function undoAsset(assetId) {
