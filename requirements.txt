@@ -9,3 +9,4 @@ openai==2.15.0
 aiohttp==3.13.3
 python-multipart==0.0.21
 weasyprint==68.0
+oci==2.165.1
