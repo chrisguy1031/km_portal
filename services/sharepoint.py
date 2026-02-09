@@ -346,7 +346,7 @@ class SharePointClient:
         response = self.make_request('GET', download_url, stream=True)
         
         if not response or response.status_code != 200: # type: ignore
-            return None, None
+            raise Exception(f"下载失败: {response.status_code}") # type: ignore
 
         # 从 Header 提取文件名
         cd = response.headers.get('Content-Disposition', '') # type: ignore
@@ -538,9 +538,9 @@ class SharePointClient:
         if not sharepoint_url:
             return ""
 
-        # 1. 预处理：去除多余空格，但不进行 unquote
-        # 注意：保持原始 URL 编码状态进行 Base64 转换是官方推荐做法
+        # 1. 预处理：去除多余空格，解码 HTML 实体（&amp; -> &）
         target_url = sharepoint_url.strip()
+        target_url = target_url.replace("&amp;", "&")
 
         # 2. 生成通用 Share ID (u! 格式)
         # 这种方式对 'Doc.aspx'、'Shared%20Documents' 以及 'Share ID' 链接全部有效
