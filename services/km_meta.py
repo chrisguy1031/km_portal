@@ -141,7 +141,38 @@ class KMFileMetaService:
 
         logger.info(f"解析 asset 元数据完成，共解析 {len(results)} 个 asset")
         return results
-    
+
+    async def reset_processed_flag(self, offset: int = 0, limit: int = 100) -> int:
+        """
+        将数据库中标记为 Y 的记录批量改回 N
+
+        Args:
+            offset: 偏移量
+            limit: 批量处理的数量
+
+        Returns:
+            成功重置的记录数
+        """
+        # 1. 获取所有标记为 Y 的记录
+        assets = await self.retrieve_asset_metadata(offset=offset, limit=limit, processed_flag="Y")
+        if not assets:
+            logger.info("没有找到标记为 Y 的 asset")
+            return 0
+
+        logger.info(f"找到 {len(assets)} 个标记为 Y 的 asset，准备重置为 N")
+
+        # 2. 批量更新为 N
+        success_count = 0
+        for asset in assets:
+            try:
+                await self.update_asset_metadata(asset.asset_id, processed_flag="N")
+                success_count += 1
+            except Exception as e:
+                logger.error(f"重置 asset {asset.asset_id} 状态失败: {e}")
+
+        logger.info(f"成功重置 {success_count}/{len(assets)} 个 asset 的状态为 N")
+        return success_count
+
     async def update_asset_metadata(self, asset_id: str, processed_flag: str):
         """更新 asset 元数据"""
         user = os.getenv("KM_USER")

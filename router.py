@@ -45,22 +45,16 @@ async def get_uploaded_files():
         else:
             sp_client.site_id = site_id
         
-        # 2. 获取驱动器信息
-        drive_id = None
-        response = sp_client.get_drives_by_site_id()
-        if response and 'value' in response:
-            drive = response.get('value')[0] # type: ignore
-            drive_id = drive.get('id')
+        # # 2. 获取驱动器信息
+        # drive_id = None
+        # response = sp_client.get_drives_by_site_id()
+        # if response and 'value' in response:
+        #     drive = response.get('value')[0] # type: ignore
+        #     drive_id = drive.get('id')
 
-        if not drive_id:
-            raise HTTPException(status_code=500, detail="获取默认驱动器失败")
-        else:
-            sp_client.drive_id = drive_id
-
-        if not drive_id:
-            raise HTTPException(status_code=500, detail="驱动器 ID 为空，无法获取列表信息")
-        else:
-            sp_client.drive_id = drive_id
+        # if not drive_id:
+        #     raise HTTPException(status_code=500, detail="获取默认驱动器失败")
+        
 
         # 3. 获取站点列表
         lists = sp_client.get_lists_with_details()
@@ -107,22 +101,16 @@ async def download_file(download_url: str):
         else:
             sp_client.site_id = site_id
 
-        # 2. 获取驱动器信息
-        drive_id = None
-        response = sp_client.get_drives_by_site_id()
-        if response and 'value' in response:
-            drive = response.get('value')[0] # type: ignore
-            drive_id = drive.get('id')
+        # # 2. 获取驱动器信息
+        # drive_id = None
+        # response = sp_client.get_drives_by_site_id()
+        # if response and 'value' in response:
+        #     drive = response.get('value')[0] # type: ignore
+        #     drive_id = drive.get('id')
 
-        if not drive_id:
-            raise HTTPException(status_code=500, detail="获取默认驱动器失败")
-        else:
-            sp_client.drive_id = drive_id
-
-        if not drive_id:
-            raise HTTPException(status_code=500, detail="驱动器 ID 为空，无法获取列表信息")
-        else:
-            sp_client.drive_id = drive_id
+        # if not drive_id:
+        #     raise HTTPException(status_code=500, detail="获取默认驱动器失败")
+        
 
         # 下载文件到内存
         file_data, filename = sp_client.download_file_to_memory(sharepoint_url=download_url)
@@ -149,5 +137,15 @@ async def update_asset(asset_id: str):
         meta_service = KMFileMetaService()
         await meta_service.update_asset_metadata(asset_id, processed_flag="N")
         return {"message": "Asset 处理状态更新成功"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/reset-processed-flag")
+async def reset_processed_flag(offset: int = 0, limit: int = 10):
+    """批量重置已处理的 Asset 为未处理状态"""
+    try:
+        meta_service = KMFileMetaService()
+        count = await meta_service.reset_processed_flag(offset=offset, limit=limit)
+        return {"message": f"成功重置 {count} 个 Asset 的处理状态", "count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

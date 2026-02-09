@@ -59,6 +59,7 @@ class FileProcessor:
                     await self._upload_file(html, asset_title,  asset_product, sub_type, industry_id,
                                             asset_details, asset_solution, solution_briefing, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
+
                 except Exception as e:
                     logger.error(f"处理文件 {second_sp_url} 时发生错误: {e}")
                     second_result = False
@@ -70,7 +71,7 @@ class FileProcessor:
                                         asset_details, asset_solution, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
             
             # 更新 asset 元数据为已处理
-            if first_result or second_result:
+            if first_result and second_result:
                 await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y")
             else:
                 await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
@@ -100,7 +101,7 @@ class FileProcessor:
 
         if file_ext not in [".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".html", ".xhtml", ".md", ".asciidoc", ".csv", ".png", ".jpeg", ".tiff", ".bmp", ".webp", ".wav", ".mp3", ".vtt"]:
             logger.error(f"文件 {file_name} 不是支持的文件类型 {file_ext}")
-            return file_name, ""
+            raise Exception(f"文件 {file_name} 不是支持的文件类型 {file_ext}")
 
         # 解析
         html = await CallParser().call_doc_parser_service(
@@ -257,9 +258,9 @@ class FileProcessor:
         decoded_file_name = unquote(file_name)
 
         file_ext = decoded_file_name.split(".")[-1]
-        new_file_name = decoded_file_name.replace(f".{file_ext}", ".pdf")
+        new_file_name = decoded_file_name.replace(f".{file_ext}", ".html") # 如果需要转换为pdf，则使用 .pdf 替换 .html
 
-        # 4. 上传 pdf 到 Sharepoint
+        # 4. 上传文件到 Sharepoint
         sp_client.upload_file_string(file_name=new_file_name, drive_id=drive_id, file_content=html) # 如果需要转换为pdf，则使用 pdf_bytes
         logger.info(f"成功上传文件 {file_name} 到 Sharepoint")
 

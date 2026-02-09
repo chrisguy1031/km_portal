@@ -77,6 +77,14 @@
             cursor: not-allowed;
         }
 
+        .btn-reset {
+            background: #28a745;
+        }
+
+        .btn-reset:hover {
+            background: #218838;
+        }
+
         .page-info {
             font-size: 14px;
             color: #666;
@@ -164,6 +172,7 @@
                     <span class="page-info" id="pageInfo">第 1 页</span>
                     <button onclick="nextPage()">下一页</button>
                 </div>
+                <button onclick="resetProcessedFlag()" class="btn-reset">批量重置(Y→N)</button>
                 <button onclick="loadAssets()">刷新</button>
             </div>
         </div>
@@ -288,6 +297,29 @@
                 loadAssets();
             } catch (error) {
                 alert(`撤销失败: ${error.message}`);
+            }
+        }
+
+        async function resetProcessedFlag() {
+            if (!confirm('确定要将当前页面显示的所有已处理(Y)记录重置为未处理(N)吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/km-portal/reset-processed-flag?offset=${currentPage * pageSize}&limit=${pageSize}`, {
+                    method: 'PUT'
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.detail || '批量重置失败');
+                }
+
+                const data = await response.json();
+                alert(data.message || '批量重置成功');
+                loadAssets();
+            } catch (error) {
+                alert(`批量重置失败: ${error.message}`);
             }
         }
 

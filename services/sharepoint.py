@@ -340,12 +340,14 @@ class SharePointClient:
         """
         # 1. 获取下载 URL
         download_url = self.get_download_url(sharepoint_url)
-        
+
         # 这里的 make_request 应该返回原始的 requests.Response 对象
         # 或者确保你能拿到 headers
         response = self.make_request('GET', download_url, stream=True)
-        
-        if not response or response.status_code != 200: # type: ignore
+
+        if not response: # type: ignore
+            raise Exception("下载失败: 无响应")
+        if response.status_code != 200: # type: ignore
             raise Exception(f"下载失败: {response.status_code}") # type: ignore
 
         # 从 Header 提取文件名
@@ -353,7 +355,7 @@ class SharePointClient:
         fname = ""
         if 'filename=' in cd:
             fname = re.findall('filename="?([^";]+)"?', cd)[0]
-        
+
         # 如果 Header 没给，从 URL 里猜一个
         if not fname:
             fname = unquote(sharepoint_url.split('file=')[-1].split('&')[0])
@@ -534,6 +536,8 @@ class SharePointClient:
     def get_download_url(self, sharepoint_url: str) -> str:
         """
         通用转换逻辑：将任何 SharePoint 链接转换为 Graph 下载链接
+
+        注意：不支持文件夹分享链接（:f:/），因为文件夹链接无法直接下载单个文件
         """
         if not sharepoint_url:
             return ""
@@ -542,14 +546,19 @@ class SharePointClient:
         target_url = sharepoint_url.strip()
         target_url = target_url.replace("&amp;", "&")
 
-        # 2. 生成通用 Share ID (u! 格式)
+        # 2. 检查是否为文件夹分享链接（:f:/ 或 /t/）
+        if ":f:/" in target_url or "/t/" in target_url:
+            logger.warning(f"不支持文件夹分享链接: {sharepoint_url}")
+            raise ValueError("不支持的 URL 格式：文件夹分享链接无法直接下载文件")
+
+        # 3. 生成通用 Share ID (u! 格式)
         # 这种方式对 'Doc.aspx'、'Shared%20Documents' 以及 'Share ID' 链接全部有效
         url_bytes = target_url.encode("utf-8")
         base64_bytes = base64.urlsafe_b64encode(url_bytes)
         base64_string = base64_bytes.decode("ascii").rstrip("=")
         share_id = "u!" + base64_string
 
-        # 3. 返回 API 地址
+        # 4. 返回 API 地址
         # 使用 /driveItem/content 会直接重定向到文件的二进制下载流
         return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
 
