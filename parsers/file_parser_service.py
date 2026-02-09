@@ -49,12 +49,14 @@ class ParseService:
                     continue
 
                 file = queue_item
-                
+
                 try:
                     logger.info(f"Worker-{worker_id} 开始处理: {file.asset_id}")
                     await FileProcessor().process_asset(file)
                 except Exception as e:
                     logger.error(f"Worker-{worker_id} 处理 Asset 出错: {e}")
+                    # 确保异常情况下也更新为失败状态
+                    await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F")
                 finally:
                     # 必须调用 task_done，否则 join() 会阻塞
                     self.file_queue.task_done()
@@ -83,9 +85,11 @@ class ParseService:
                         await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="P")
                         await self.file_queue.put((file))
                         processed_count += 1
-                        
+
                     except Exception as e:
                         logger.error(f"将 Asset {file.asset_id} 加入队列失败: {e}")
+                        # 加入队列失败时也要标记为失败，避免卡在 P 状态
+                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F")
                 
                 logger.info(f"成功将 {processed_count}/{len(pending_files)} 个 Asset 加入队列")
             
