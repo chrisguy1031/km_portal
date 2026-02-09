@@ -85,7 +85,9 @@ class KMFileMetaService:
                     "asset_hours": item.get("asset_hours", ""),
                     "processed": item.get("processed", "N"),
                     "second_sp_url": item.get("second_sp_url", ""),
-                    "first_sp_url": item.get("first_sp_url", "")
+                    "first_sp_url": item.get("first_sp_url", ""),
+                    "asset_solution": item.get("asset_solution", ""),
+                    "asset_product": item.get("asset_product", "")
                 }
                 result.append(asset_dict)
                 logger.info(f"获取 asset 文档: {asset_dict['asset_id']} - {asset_dict['asset_title']}")
