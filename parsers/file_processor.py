@@ -38,7 +38,9 @@ class FileProcessor:
         first_sp_url = item.first_sp_url
         second_sp_url = item.second_sp_url
 
-        asset_head = f"""<h2>{asset_title}</h2>
+        asset_head = f"""
+            <p>Asset Head</p>
+            <h2>{asset_title}</h2>
             <p>Asset Product: {asset_product}</p>
             <p>Sub Type: {sub_type}</p>
             <p>Industry ID: {industry_id}</p>
@@ -49,6 +51,7 @@ class FileProcessor:
             <p>Solution Briefing:</p>
             <p>{solution_briefing}</p>
         """
+        logger.debug(f"Asset Head: {asset_head}")
 
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
         try:
