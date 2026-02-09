@@ -51,7 +51,7 @@ class FileProcessor:
             <p>Solution Briefing:</p>
             <p>{solution_briefing}</p>
         """
-        logger.debug(f"Asset Head: {asset_head}")
+        # logger.debug(f"Asset Head: {asset_head}")
 
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
         try:
@@ -199,6 +199,8 @@ class FileProcessor:
         try:
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 prompt_content = f.read().strip()
+                prompt_content = prompt_content.format(html=html)
+                # prompt_content = prompt_content.replace("{html}", html)
         except Exception as e:
             logger.error(f"读取 translate.txt 失败: {e}")
             prompt_content = f"""请将以下HTML内容进行英文翻译，并严格按照以下要求执行：
