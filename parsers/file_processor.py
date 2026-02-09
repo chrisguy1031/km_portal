@@ -248,7 +248,7 @@ class FileProcessor:
         # pdf_bytes = self._html_to_pdf(html)
 
         # 4. 获取 SEHUB 的 SharePoint 客户端
-        sp_client = await self._get_sehub_sp_client()
+        sp_client, drive_id = await self._get_sehub_sp_client()
 
         # URL 解码文件名
         decoded_file_name = unquote(file_name)
@@ -257,10 +257,10 @@ class FileProcessor:
         new_file_name = decoded_file_name.replace(f".{file_ext}", ".pdf")
 
         # 4. 上传 pdf 到 Sharepoint
-        sp_client.upload_pdf_string(file_name=new_file_name, file_content=html) # 如果需要转换为pdf，则使用 pdf_bytes
+        sp_client.upload_file_string(file_name=new_file_name, drive_id=drive_id, file_content=html) # 如果需要转换为pdf，则使用 pdf_bytes
         logger.info(f"成功上传文件 {file_name} 到 Sharepoint")
 
-    async def _get_sehub_sp_client(self) -> SharePointClient:
+    async def _get_sehub_sp_client(self) -> tuple[SharePointClient, str]:
         """获取 SEHUB 的 SharePoint 客户端"""
         sp_client = get_sharepoint_client()
         # 获取 SEHUB 站点 ID
@@ -278,22 +278,14 @@ class FileProcessor:
             raise Exception("获取 SEHUB 站点 ID 失败")
         else:
             sp_client.site_id = site_id
-        
-        # 获取默认驱动器 ID
-        response = sp_client.get_drives_by_site_id()
-        logger.debug(f"获取默认驱动器响应: {response}")
-        if response and 'value' in response:
-            drive = response.get("value")[0] # type: ignore
-            drive_id = drive.get("id", None)
-            logger.debug(f"默认驱动器 ID: {drive_id}")
-        else:
-            logger.error("获取默认驱动器失败")
-            raise Exception("获取默认驱动器失败")
-        
-        if not drive_id:
-            logger.error("获取默认驱动器 ID 失败")
-            raise Exception("获取默认驱动器 ID 失败")
-        else:
-            sp_client.drive_id = drive_id
 
-        return sp_client
+        # 获取 SEHUB 的 drive id
+        drives = sp_client.get_drives_by_site_id()
+        if drives and 'value' in drives:
+            drive = drives.get('value')[0] # type: ignore
+            drive_id = drive.get('id')
+        else:
+            logger.error("获取 SEHUB 的 drive id 失败")
+            raise Exception("获取 SEHUB 的 drive id 失败")
+        
+        return sp_client, drive_id

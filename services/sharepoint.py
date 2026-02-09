@@ -13,14 +13,31 @@ class SharePointClient:
     Microsoft Graph API 客户端，专门用于 SharePoint 操作
     """
     
-    def __init__(self, tenant_id: str, client_id: str, client_secret: str, site_id: str, drive_id: str):
+    def __init__(self, tenant_id: str, client_id: str, client_secret: str):
         self.tenant_id = tenant_id
         self.client_id = client_id
         self.client_secret = client_secret
-        self.site_id = site_id
-        self.drive_id = drive_id
         self._access_token = None
         self._token_expires_at = None
+        self._site_id_cache = None
+        self._drive_id_cache = None
+
+    @property
+    def site_id(self):
+        if self._site_id_cache is None:
+            SITE_PATH = os.getenv("SITE_PATH")
+            if not SITE_PATH:
+                raise ValueError("SITE_PATH 环境变量未设置")
+            site = self.get_site_by_path(SITE_PATH)
+            if not site or 'id' not in site:
+                raise ValueError("获取站点 ID 失败")
+            self._site_id_cache = site.get('id')
+        return self._site_id_cache
+
+    @site_id.setter
+    def site_id(self, value):
+        self._site_id_cache = value
+
     
     def _get_token(self) -> str | None:
         """
@@ -343,7 +360,7 @@ class SharePointClient:
 
         return io.BytesIO(response.content), fname # type: ignore
     
-    def upload_file(self, folder_path: str, local_file_path: str) -> bool:
+    def upload_file(self, folder_path: str, local_file_path: str, drive_id: str) -> bool:
         """
         上传本地文件到 SharePoint，支持大文件 (分块上传) 和中文路径
         """
@@ -363,26 +380,26 @@ class SharePointClient:
             
             # 1. 小文件上传 (<= 4MB)
             if file_size <= 4 * 1024 * 1024:
-                upload_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{self.drive_id}{target_path}"
+                upload_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{drive_id}{target_path}"
                 with open(local_file_path, 'rb') as f:
                     response = self.make_request('PUT', upload_url, data=f.read())
                 return True if response else False
 
             # 2. 大文件分块上传 (> 4MB)
             else:
-                return self._upload_large_file(clean_folder, file_name, local_file_path)
+                return self._upload_large_file(clean_folder, file_name, local_file_path, drive_id)
 
         except Exception as e:
             logger.error(f"❌ 上传异常: {e}")
             return False
 
-    def _upload_large_file(self, folder_path: str, file_name: str, local_path: str) -> bool:
+    def _upload_large_file(self, folder_path: str, file_name: str, local_path: str, drive_id: str) -> bool:
         """使用 Upload Session 处理大文件"""
         logger.info(f"📦 文件较大 ({os.path.getsize(local_path)/1024/1024:.2f}MB)，启用分块上传...")
         
         # 创建上传会话
         encoded_path = quote(f"{folder_path}/{file_name}", safe='/')
-        session_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{self.drive_id}/root:/{encoded_path}:/createUploadSession"
+        session_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{drive_id}/root:/{encoded_path}:/createUploadSession"
         
         session_data = self.make_request('POST', session_url)
         if not session_data or 'uploadUrl' not in session_data:
@@ -411,9 +428,9 @@ class SharePointClient:
         logger.info(f"✅ 大文件上传完成: {file_name}")
         return True
     
-    def upload_pdf_string(self, file_name: str, file_content: bytes | str) -> bool:
+    def upload_file_string(self, file_name: str, drive_id: str, file_content: bytes | str) -> bool:
         """
-        将 PDF 直接上传到 SharePoint
+        将文件内容作为字节流直接上传到 SharePoint
         """
         try:
             # 1. 确保内容为字节流并统一编码
@@ -425,7 +442,7 @@ class SharePointClient:
             # 2. 规范化路径：仅使用文件名进行 URL 编码
             encoded_file = quote(file_name)
             target_path = f"/root:/{encoded_file}:/content"
-            upload_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{self.drive_id}{target_path}"
+            upload_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{drive_id}{target_path}"
 
             # 3. 设置必要的 Header
             # 指定 PDF 内容类型
@@ -548,11 +565,10 @@ def get_sharepoint_client() -> SharePointClient:
         TENANT_ID = os.getenv("TENANT_ID")
         CLIENT_ID = os.getenv("CLIENT_ID")
         CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-        SITE_ID = os.getenv("SITE_ID")
-        DRIVE_ID = os.getenv("DRIVE_ID")
 
-        if not TENANT_ID or not CLIENT_ID or not CLIENT_SECRET or not SITE_ID or not DRIVE_ID:
-            raise ValueError("请设置 TENANT_ID、CLIENT_ID、CLIENT_SECRET、SITE_ID 和 DRIVE_ID 环境变量")
+        if not TENANT_ID or not CLIENT_ID or not CLIENT_SECRET:
+            raise ValueError("请设置 TENANT_ID、CLIENT_ID、CLIENT_SECRET 和 SITE_PATH 环境变量")
 
-        _sp_client_instance = SharePointClient(TENANT_ID, CLIENT_ID, CLIENT_SECRET, SITE_ID, DRIVE_ID)
+        _sp_client_instance = SharePointClient(TENANT_ID, CLIENT_ID, CLIENT_SECRET)
+
     return _sp_client_instance
