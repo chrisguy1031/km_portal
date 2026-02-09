@@ -536,29 +536,22 @@ class SharePointClient:
     def get_download_url(self, sharepoint_url: str) -> str:
         """
         通用转换逻辑：将任何 SharePoint 链接转换为 Graph 下载链接
-
-        注意：不支持文件夹分享链接（:f:/），因为文件夹链接无法直接下载单个文件
         """
         if not sharepoint_url:
             return ""
 
-        # 1. 预处理：去除多余空格，解码 HTML 实体（&amp; -> &）
+        # 1. 预处理：去除多余空格，但不进行 unquote
+        # 注意：保持原始 URL 编码状态进行 Base64 转换是官方推荐做法
         target_url = sharepoint_url.strip()
-        target_url = target_url.replace("&amp;", "&")
 
-        # 2. 检查是否为文件夹分享链接（:f:/ 或 /t/）
-        if ":f:/" in target_url or "/t/" in target_url:
-            logger.warning(f"不支持文件夹分享链接: {sharepoint_url}")
-            raise ValueError("不支持的 URL 格式：文件夹分享链接无法直接下载文件")
-
-        # 3. 生成通用 Share ID (u! 格式)
+        # 2. 生成通用 Share ID (u! 格式)
         # 这种方式对 'Doc.aspx'、'Shared%20Documents' 以及 'Share ID' 链接全部有效
         url_bytes = target_url.encode("utf-8")
         base64_bytes = base64.urlsafe_b64encode(url_bytes)
         base64_string = base64_bytes.decode("ascii").rstrip("=")
         share_id = "u!" + base64_string
 
-        # 4. 返回 API 地址
+        # 3. 返回 API 地址
         # 使用 /driveItem/content 会直接重定向到文件的二进制下载流
         return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
 
