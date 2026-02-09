@@ -111,6 +111,9 @@ class KMFileMetaService:
                 asset_id = item.get("asset_id", "")
                 asset_title = item.get("asset_title", "")
                 asset_details = item.get("asset_details", "")
+                asset_type = item.get("asset_type", "")
+                sub_type = item.get("sub_type", "")
+                industry_id = item.get("industry_id", "")
                 solution_briefing = item.get("solution_briefing", "")
                 first_sp_url = item.get("first_sp_url", "")
                 second_sp_url = item.get("second_sp_url", "")
@@ -118,6 +121,9 @@ class KMFileMetaService:
                 result = AssetMeta(
                     asset_id=asset_id,
                     asset_title=asset_title,
+                    asset_type=asset_type,
+                    sub_type=sub_type,
+                    industry_id=industry_id,
                     asset_details=asset_details,
                     solution_briefing=solution_briefing,
                     first_sp_url=first_sp_url,

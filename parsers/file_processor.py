@@ -3,7 +3,7 @@ import io
 import os
 import json
 from weasyprint import HTML
-
+from urllib.parse import unquote
 from .file_params import ParserParams, AssetMeta
 from clients.parser_client import CallParser
 from clients.model_client import CallModel
@@ -29,6 +29,9 @@ class FileProcessor:
         """
         asset_id = item.asset_id
         asset_title = item.asset_title
+        asset_type = item.asset_type
+        sub_type = item.sub_type
+        industry_id = item.industry_id
         asset_details = item.asset_details
         solution_briefing = item.solution_briefing
         first_sp_url = item.first_sp_url
@@ -41,7 +44,8 @@ class FileProcessor:
             if first_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(first_sp_url)
-                    await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_title, asset_type, sub_type, industry_id,
+                                            asset_details, solution_briefing, original_file_url, file_name)
                     logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
                 except Exception as e:
@@ -51,7 +55,8 @@ class FileProcessor:
             if second_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(second_sp_url)
-                    await self._upload_file(html, asset_title, asset_details, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_title,  asset_type, sub_type, industry_id,
+                                            asset_details, solution_briefing, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
                 except Exception as e:
                     logger.error(f"处理文件 {second_sp_url} 时发生错误: {e}")
@@ -60,7 +65,8 @@ class FileProcessor:
             if not first_sp_url and not second_sp_url:
                 logger.warning(f"asset {asset_id} 没有有效文件 URL")
                 # 更新 asset 元数据为处理失败
-                await self._upload_file("", asset_title, asset_details, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
+                await self._upload_file("", asset_title,  asset_type, sub_type, industry_id,
+                                        asset_details, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
             
             # 更新 asset 元数据为已处理
             if first_result or second_result:
@@ -153,9 +159,9 @@ class FileProcessor:
             logger.error(f"❌ HTML 转 PDF 失败: {e}")
             raise Exception(f"HTML 转 PDF 失败: {e}")
 
-    async def _upload_file(self, file_content: str, asset_title: str,
-                          asset_details: str, solution_briefing: str,
-                          original_file_url: str, file_name: str):
+    async def _upload_file(self, file_content: str, asset_title: str, asset_type: str, 
+                           sub_type: str, industry_id: str, asset_details: str, 
+                           solution_briefing: str, original_file_url: str, file_name: str):
         """上传文件到 Sharepoint"""
         # 1.给 html 增加 asset 元数据
         html = f"""
@@ -166,6 +172,9 @@ class FileProcessor:
                 <span style="color: red;"> (VPN Required)</span>
             </div>
             <h2>{asset_title}</h2>
+            <p>Asset Type: {asset_type}</p>
+            <p>Sub Type: {sub_type}</p>
+            <p>Industry ID: {industry_id}</p>
             <p>Asset Details:</p>
             <p>{asset_details}</p>
             <p>Solution Briefing:</p>
@@ -180,8 +189,47 @@ class FileProcessor:
         """
         # 2. 调用 LLM 将内容翻译为英文
         response_str = ""
+        prompt_path = os.path.join(os.path.dirname(__file__), "..", "configuration", "translate.txt")
+        try:
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                prompt_content = f.read().strip()
+        except Exception as e:
+            logger.error(f"读取 translate.txt 失败: {e}")
+            prompt_content = f"""请将以下HTML内容进行英文翻译，并严格按照以下要求执行：
+
+**核心任务：**
+1. **完整翻译** - 将文档内容全部翻译成自然、专业的英文
+2. **格式保持** - 保持原有HTML标签结构不变，输出标准格式的HTML文档
+3. **仅翻译，不解释** - 只输出翻译后的HTML，不要添加任何解释、评论或额外说明
+
+**脱敏规则：**
+- **需要脱敏的信息**：
+  - 客户姓名（如：张三 → XX Customer）
+  - 公司名称（当作为客户时，如：ABC科技有限公司 → XX Company）
+- **不需要脱敏的信息**：
+  - 产品名称中的公司名（如：Oracle数据库 → Oracle Database）
+  - 通用技术术语（如：微软Windows系统 → Microsoft Windows System）
+  - 公开的知名品牌和产品
+  
+**具体执行：**
+1. 翻译优先级高于脱敏
+2. 保持HTML标签的完整性和属性不变
+3. 脱敏时使用中性替代词：
+   - 客户姓名 → "XX Customer"
+   - 公司名称 → "XX Company"
+4. 上下文判断：只有明确作为客户或敏感实体的名称才脱敏
+
+**输出要求：**
+- 只输出翻译完成且经过脱敏处理的完整HTML代码
+- 不要包含任何元说明，如"以下是翻译结果："等
+- 确保HTML格式规范，可直接在浏览器中渲染
+
+需要处理的HTML内容：{html}
+
+请开始翻译并脱敏。"""
+
         async for chunk in CallModel().call_llm_model(
-            prompt=f"Prompt: Translate the content of the following document into English. Only translate, do not add any explanations or comments. The output format should be standard HTML. Additionally, determine whether the content contains information such as customer names or company names; if so, desensitize them to 'XX Company'.\n\n{html}",
+            prompt=prompt_content,
             model_name=self.llm_model or "gpt-4o-mini",
             temperature=0.0,
             stream=False):
@@ -197,20 +245,19 @@ class FileProcessor:
         html = response_data["choices"][0]["message"]["content"]
         
         # 3. 将 html 内容转换为 pdf 字节流
-        pdf_bytes = self._html_to_pdf(html)
+        # pdf_bytes = self._html_to_pdf(html)
 
         # 4. 获取 SEHUB 的 SharePoint 客户端
         sp_client = await self._get_sehub_sp_client()
 
         # URL 解码文件名
-        from urllib.parse import unquote
         decoded_file_name = unquote(file_name)
 
         file_ext = decoded_file_name.split(".")[-1]
         new_file_name = decoded_file_name.replace(f".{file_ext}", ".pdf")
 
         # 4. 上传 pdf 到 Sharepoint
-        sp_client.upload_pdf_string(file_name=new_file_name, file_content=pdf_bytes)
+        sp_client.upload_pdf_string(file_name=new_file_name, file_content=html) # 如果需要转换为pdf，则使用 pdf_bytes
         logger.info(f"成功上传文件 {file_name} 到 Sharepoint")
 
     async def _get_sehub_sp_client(self) -> SharePointClient:
