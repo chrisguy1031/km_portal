@@ -39,17 +39,13 @@ class FileProcessor:
         second_sp_url = item.second_sp_url
 
         asset_head = f"""
-            <p>Asset Head</p>
-            <h2>{asset_title}</h2>
-            <p>Asset Product: {asset_product}</p>
-            <p>Sub Type: {sub_type}</p>
-            <p>Industry ID: {industry_id}</p>
-            <p>Asset Solution:</p>
-            <p>{asset_solution}</p>
-            <p>Asset Details:</p>
-            <p>{asset_details}</p>
-            <p>Solution Briefing:</p>
-            <p>{solution_briefing}</p>
+            <h2><strong style="color: #0066cc;">Title:</strong> {asset_title}</h2>
+            <p><strong style="color: #0066cc;">Product:</strong> {asset_product}.</p>
+            <p><strong style="color: #0066cc;">Solution:</strong> {asset_solution}.</p>
+            <p><strong style="color: #0066cc;">Type:</strong> {sub_type}</p>
+            <p><strong style="color: #0066cc;">Industry:</strong> {industry_id}</p>
+            <p><strong style="color: #0066cc;">Details:</strong> {asset_details}</p>
+            <p><strong style="color: #0066cc;">Solution Briefing:</strong> {solution_briefing}</p>
         """
         # logger.debug(f"Asset Head: {asset_head}")
 
@@ -177,7 +173,7 @@ class FileProcessor:
         # 1.给 html 增加 asset 元数据
         html = f"""
         <div>
-            <span style="font-size: 1.2rem;">Original Asset URL: </span>
+            <span style="font-size: 1.2rem;">Source: </span>
             <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
             <span style="color: red;"> (VPN Required)</span>
         </div>
@@ -188,7 +184,7 @@ class FileProcessor:
             {file_content}
         </div>
         <div>
-            <span style="font-size: 1.2rem;">Original Asset URL: </span>
+            <span style="font-size: 1.2rem;">Source: </span>
             <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
             <span style="color: red;"> (VPN Required)</span>
         </div>
