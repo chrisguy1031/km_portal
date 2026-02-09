@@ -29,9 +29,10 @@ class FileProcessor:
         """
         asset_id = item.asset_id
         asset_title = item.asset_title
-        asset_type = item.asset_type
+        asset_product = item.asset_product
         sub_type = item.sub_type
         industry_id = item.industry_id
+        asset_solution = item.asset_solution
         asset_details = item.asset_details
         solution_briefing = item.solution_briefing
         first_sp_url = item.first_sp_url
@@ -44,8 +45,8 @@ class FileProcessor:
             if first_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(first_sp_url)
-                    await self._upload_file(html, asset_title, asset_type, sub_type, industry_id,
-                                            asset_details, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_title, asset_product, sub_type, industry_id,
+                                            asset_details, asset_solution, solution_briefing, original_file_url, file_name)
                     logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
                 except Exception as e:
@@ -55,8 +56,8 @@ class FileProcessor:
             if second_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(second_sp_url)
-                    await self._upload_file(html, asset_title,  asset_type, sub_type, industry_id,
-                                            asset_details, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_title,  asset_product, sub_type, industry_id,
+                                            asset_details, asset_solution, solution_briefing, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
                 except Exception as e:
                     logger.error(f"处理文件 {second_sp_url} 时发生错误: {e}")
@@ -65,8 +66,8 @@ class FileProcessor:
             if not first_sp_url and not second_sp_url:
                 logger.warning(f"asset {asset_id} 没有有效文件 URL")
                 # 更新 asset 元数据为处理失败
-                await self._upload_file("", asset_title,  asset_type, sub_type, industry_id,
-                                        asset_details, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
+                await self._upload_file("", asset_title,  asset_product, sub_type, industry_id,
+                                        asset_details, asset_solution, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
             
             # 更新 asset 元数据为已处理
             if first_result or second_result:
@@ -159,8 +160,8 @@ class FileProcessor:
             logger.error(f"❌ HTML 转 PDF 失败: {e}")
             raise Exception(f"HTML 转 PDF 失败: {e}")
 
-    async def _upload_file(self, file_content: str, asset_title: str, asset_type: str, 
-                           sub_type: str, industry_id: str, asset_details: str, 
+    async def _upload_file(self, file_content: str, asset_title: str, asset_product: str, 
+                           sub_type: str, industry_id: str, asset_details: str, asset_solution: str,
                            solution_briefing: str, original_file_url: str, file_name: str):
         """上传文件到 Sharepoint"""
         # 1.给 html 增加 asset 元数据
@@ -172,9 +173,11 @@ class FileProcessor:
                 <span style="color: red;"> (VPN Required)</span>
             </div>
             <h2>{asset_title}</h2>
-            <p>Asset Type: {asset_type}</p>
+            <p>Asset Product: {asset_product}</p>
             <p>Sub Type: {sub_type}</p>
             <p>Industry ID: {industry_id}</p>
+            <p>Asset Solution:</p>
+            <p>{asset_solution}</p>
             <p>Asset Details:</p>
             <p>{asset_details}</p>
             <p>Solution Briefing:</p>
@@ -224,7 +227,7 @@ class FileProcessor:
 - 不要包含任何元说明，如"以下是翻译结果："等
 - 确保HTML格式规范，可直接在浏览器中渲染
 
-需要处理的HTML内容：{html}
+需要处理的HTML内容: {html}
 
 请开始翻译并脱敏。"""
 
