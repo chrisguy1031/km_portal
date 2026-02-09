@@ -38,6 +38,18 @@ class FileProcessor:
         first_sp_url = item.first_sp_url
         second_sp_url = item.second_sp_url
 
+        asset_head = f"""<h2>{asset_title}</h2>
+            <p>Asset Product: {asset_product}</p>
+            <p>Sub Type: {sub_type}</p>
+            <p>Industry ID: {industry_id}</p>
+            <p>Asset Solution:</p>
+            <p>{asset_solution}</p>
+            <p>Asset Details:</p>
+            <p>{asset_details}</p>
+            <p>Solution Briefing:</p>
+            <p>{solution_briefing}</p>
+        """
+
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
         try:
             first_result = True
@@ -45,8 +57,7 @@ class FileProcessor:
             if first_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(first_sp_url)
-                    await self._upload_file(html, asset_title, asset_product, sub_type, industry_id,
-                                            asset_details, asset_solution, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
                 except Exception as e:
@@ -56,8 +67,7 @@ class FileProcessor:
             if second_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(second_sp_url)
-                    await self._upload_file(html, asset_title,  asset_product, sub_type, industry_id,
-                                            asset_details, asset_solution, solution_briefing, original_file_url, file_name)
+                    await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
 
                 except Exception as e:
@@ -66,9 +76,7 @@ class FileProcessor:
 
             if not first_sp_url and not second_sp_url:
                 logger.warning(f"asset {asset_id} 没有有效文件 URL")
-                # 更新 asset 元数据为处理失败
-                await self._upload_file("", asset_title,  asset_product, sub_type, industry_id,
-                                        asset_details, asset_solution, solution_briefing, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
+                await self._upload_file("", asset_head, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
             
             # 更新 asset 元数据为已处理
             if first_result and second_result:
@@ -161,30 +169,21 @@ class FileProcessor:
             logger.error(f"❌ HTML 转 PDF 失败: {e}")
             raise Exception(f"HTML 转 PDF 失败: {e}")
 
-    async def _upload_file(self, file_content: str, asset_title: str, asset_product: str, 
-                           sub_type: str, industry_id: str, asset_details: str, asset_solution: str,
-                           solution_briefing: str, original_file_url: str, file_name: str):
+    async def _upload_file(self, file_content: str, asset_head: str, original_file_url: str, file_name: str):
         """上传文件到 Sharepoint"""
         # 1.给 html 增加 asset 元数据
         html = f"""
         <div>
-            <div>
-                <span style="font-size: 1.2rem;">Original Asset URL: </span>
-                <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
-                <span style="color: red;"> (VPN Required)</span>
-            </div>
-            <h2>{asset_title}</h2>
-            <p>Asset Product: {asset_product}</p>
-            <p>Sub Type: {sub_type}</p>
-            <p>Industry ID: {industry_id}</p>
-            <p>Asset Solution:</p>
-            <p>{asset_solution}</p>
-            <p>Asset Details:</p>
-            <p>{asset_details}</p>
-            <p>Solution Briefing:</p>
-            <p>{solution_briefing}</p>
+            <span style="font-size: 1.2rem;">Original Asset URL: </span>
+            <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
+            <span style="color: red;"> (VPN Required)</span>
         </div>
-        {file_content}
+        <div>
+            {asset_head}
+        </div>
+        <div>
+            {file_content}
+        </div>
         <div>
             <span style="font-size: 1.2rem;">Original Asset URL: </span>
             <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
