@@ -108,16 +108,16 @@ class KMFileMetaService:
 
         for item in asset_meta:
             try:
-                asset_id = item.get("asset_id", "")
-                asset_title = item.get("asset_title", "")
-                asset_details = item.get("asset_details", "")
-                asset_product = item.get("asset_product", "")
-                sub_type = item.get("sub_type", "")
-                industry_id = item.get("industry_id", "")
-                asset_solution = item.get("asset_solution", "")
-                solution_briefing = item.get("solution_briefing", "")
-                first_sp_url = item.get("first_sp_url", "")
-                second_sp_url = item.get("second_sp_url", "")
+                asset_id = item.get("asset_id") or ""
+                asset_title = item.get("asset_title") or ""
+                asset_details = item.get("asset_details") or ""
+                asset_product = item.get("asset_product") or ""
+                sub_type = item.get("sub_type") or ""
+                industry_id = item.get("industry_id") or ""
+                asset_solution = item.get("asset_solution") or ""
+                solution_briefing = item.get("solution_briefing") or ""
+                first_sp_url = item.get("first_sp_url") or ""
+                second_sp_url = item.get("second_sp_url") or ""
 
                 result = AssetMeta(
                     asset_id=asset_id,
