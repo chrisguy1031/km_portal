@@ -108,7 +108,12 @@ class FileProcessor:
         sp_client = get_sharepoint_client()
         
         # 1. 从 Sharepoint 下载文件到内存 (BytesIO 对象)
-        content_io, file_name = sp_client.download_file_to_memory(sp_url)
+        try:
+            content_io, file_name = sp_client.download_file_to_memory(sp_url)
+        except Exception as e:
+            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败: {e}")
+            return "", ""
+        
         if not content_io:
             logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败")
             return "", "" # 未下载到文件，返回空字符串
