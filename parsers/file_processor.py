@@ -246,22 +246,31 @@ class FileProcessor:
 请开始翻译并脱敏。"""
 
         response_str = ""
-        async for chunk in CallModel().call_llm_model(
-                prompt=prompt_content,
+        async for raw_chunk in CallModel().call_llm_model(
                 model_name=self.llm_model or "gpt-4o-mini",
+                prompt=prompt_content,
                 temperature=0.0,
                 stream=True
             ):
-            response_str += chunk
+            # 解析 SSE 格式的数据
+            if raw_chunk.startswith("data: "):
+                json_str = raw_chunk[6:].strip()
+                if json_str == "[DONE]":
+                    break
+                try:
+                    chunk_data = json.loads(json_str)
+                    content = chunk_data["choices"][0]["message"]["content"]
+                    response_str += content
+                except json.JSONDecodeError:
+                    continue
 
         if not response_str:
             msg = "LLM 翻译响应为空"
             logger.error(msg)
             raise Exception(msg)
 
-        # 解析 OpenAI 标准格式的 JSON 响应并提取内容
-        response_data = json.loads(response_str)
-        html = response_data["choices"][0]["message"]["content"]
+        # response_str 已经是解析后的 HTML 内容，直接使用
+        html = response_str
         
         # 3. 将 html 内容转换为 pdf 字节流
         # pdf_bytes = self._html_to_pdf(html)
