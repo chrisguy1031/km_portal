@@ -203,7 +203,6 @@ class FileProcessor:
         </div>
         """
         # 2. 调用 LLM 将内容翻译为英文
-        response_str = ""
         prompt_path = os.path.join(os.path.dirname(__file__), "..", "configuration", "translate.txt")
         try:
             with open(prompt_path, 'r', encoding='utf-8') as f:
@@ -245,37 +244,29 @@ class FileProcessor:
 
 请开始翻译并脱敏。"""
 
-        response_str = ""
+        chunks = []
         async for raw_chunk in CallModel().call_llm_model(
                 model_name=self.llm_model or "gpt-4o-mini",
                 prompt=prompt_content,
                 temperature=0.0,
                 stream=True
             ):
-            # 解析 SSE 格式的数据
-            if raw_chunk.startswith("data: "):
-                json_str = raw_chunk[6:].strip()
-                if json_str == "[DONE]":
-                    break
-                try:
-                    chunk_data = json.loads(json_str)
-                    # 安全地提取 content，处理可能的格式差异
-                    choices = chunk_data.get("choices", [])
-                    if choices and len(choices) > 0:
-                        message = choices[0].get("message", {})
-                        content = message.get("content", "")
-                        response_str += content
-                except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
-                    logger.debug(f"解析 SSE chunk 失败: {e}, chunk: {raw_chunk[:100]}")
-                    continue
+            
+            # 收集内容块
+            await self._collect_chunks(raw_chunk, chunks)
 
-        if not response_str:
-            msg = "LLM 翻译响应为空"
-            logger.error(msg)
-            raise Exception(msg)
+            str_chunks = []
+            for chunk in chunks:
+                if isinstance(chunk, bytes):
+                    str_chunks.append(chunk.decode("utf-8"))
+                else:
+                    str_chunks.append(str(chunk))
+            
+            full_response = "".join(str_chunks) if str_chunks else ""
+        
 
-        # response_str 已经是解析后的 HTML 内容，直接使用
-        html = response_str
+        # full_response 已经是解析后的 HTML 内容，直接使用
+        html = full_response
         
         # 3. 将 html 内容转换为 pdf 字节流
         # pdf_bytes = self._html_to_pdf(html)
@@ -322,3 +313,23 @@ class FileProcessor:
             raise Exception("获取 SEHUB 的 drive id 失败")
         
         return sp_client, drive_id
+
+    async def _collect_chunks(self, chunk, chunks: list):
+        """收集内容块"""
+        if isinstance(chunk, str) and chunk.startswith('data: '):
+            data_content = chunk[6:].strip()
+            if data_content != '[DONE]':
+                try:
+                    json_data = json.loads(data_content)
+                    if "choices" in json_data and len(json_data["choices"]) > 0:
+                        if delta := json_data["choices"][0].get("delta"):
+                            if content := delta.get("content"):
+                                chunks.append(content)
+                except json.JSONDecodeError:
+                    pass
+        elif isinstance(chunk, dict):
+            # 处理已经是字典格式的chunk
+            if "choices" in chunk and len(chunk["choices"]) > 0:
+                if delta := chunk["choices"][0].get("delta"):
+                    if content := delta.get("content"):
+                        chunks.append(content)
