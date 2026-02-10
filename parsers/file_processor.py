@@ -38,24 +38,33 @@ class FileProcessor:
         first_sp_url = item.first_sp_url
         second_sp_url = item.second_sp_url
 
-        asset_head = f"""
-            <h2><strong style="color: #0066cc;">Title:</strong> {asset_title}</h2>
-            <p><strong style="color: #0066cc;">Product:</strong> {asset_product}.</p>
-            <p><strong style="color: #0066cc;">Solution:</strong> {asset_solution}.</p>
-            <p><strong style="color: #0066cc;">Type:</strong> {sub_type}</p>
-            <p><strong style="color: #0066cc;">Industry:</strong> {industry_id}</p>
-            <p><strong style="color: #0066cc;">Details:</strong> {asset_details}</p>
-            <p><strong style="color: #0066cc;">Solution Briefing:</strong> {solution_briefing}</p>
-        """
+        asset_head = f"""<h2>{asset_title}</h2>"""
+        if asset_solution:
+            asset_head += f"""<p><strong style="color: #0066cc;">Solution:</strong> {asset_solution}.</p>"""
+        if asset_product:
+            asset_head += f"""<p><strong style="color: #0066cc;">Product:</strong> {asset_product}.</p>"""
+        if industry_id:
+            asset_head += f"""<p><strong style="color: #0066cc;">Industry:</strong> {industry_id}.</p>"""
+        if sub_type:
+            asset_head += f"""<p><strong style="color: #0066cc;">Type:</strong> {sub_type}.</p>"""
+        if asset_details:
+            asset_head += f"""<p><strong style="color: #0066cc;">Details:</strong> {asset_details}.</p>"""
+        if solution_briefing:
+            asset_head += f"""<p><strong style="color: #0066cc;">Solution Briefing:</strong> {solution_briefing}.</p>"""
+        
+        
         # logger.debug(f"Asset Head: {asset_head}")
-
         original_file_url = f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
         try:
             first_result = True
             second_result = True
+
+            # 有第一个附件
             if first_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(first_sp_url)
+                    if not file_name:
+                        file_name = f"asset_{asset_id[:6]}_sp1.html"
                     await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
@@ -63,9 +72,12 @@ class FileProcessor:
                     logger.error(f"处理文件 {first_sp_url} 时发生错误: {e}")
                     first_result = False
 
+            # 有第二个附件
             if second_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(second_sp_url)
+                    if not file_name:
+                        file_name = f"asset_{asset_id[:6]}_sp2.html"
                     await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
 
@@ -73,6 +85,7 @@ class FileProcessor:
                     logger.error(f"处理文件 {second_sp_url} 时发生错误: {e}")
                     second_result = False
 
+            # 没有附件
             if not first_sp_url and not second_sp_url:
                 logger.warning(f"asset {asset_id} 没有有效文件 URL")
                 await self._upload_file("", asset_head, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
@@ -97,31 +110,31 @@ class FileProcessor:
         # 1. 从 Sharepoint 下载文件到内存 (BytesIO 对象)
         content_io, file_name = sp_client.download_file_to_memory(sp_url)
         if not content_io:
-            msg = f"从 Sharepoint 下载文件 {sp_url} 失败"
-            logger.error(msg)
-            raise Exception(msg)
+            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败")
+            return "", "" # 未下载到文件，返回空字符串
 
         # 2. 获取文件扩展名
         if not file_name:
-            raise Exception(f"从 Sharepoint 下载文件 {sp_url} 失败，文件名为空")
+            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败，文件名为空")
+            return "", ""
+
         file_ext = os.path.splitext(file_name)[1]
 
         if file_ext not in [".pdf", ".docx", ".pptx", ".xlsx", ".txt", ".html", ".xhtml", ".md", ".asciidoc", ".csv", ".png", ".jpeg", ".tiff", ".bmp", ".webp", ".wav", ".mp3", ".vtt"]:
             logger.error(f"文件 {file_name} 不是支持的文件类型 {file_ext}")
-            raise Exception(f"文件 {file_name} 不是支持的文件类型 {file_ext}")
+            return file_name, ""
 
         # 解析
         html = await CallParser().call_doc_parser_service(
-            file_path=file_name,  # type: ignore
+            file_path=file_name,
             parser_params=self._get_parser_params(),
             file_content=content_io.read(), # BytesIO 转 bytes
             output_format="html"
         )
         
         if not isinstance(html, str):
-            msg = f"文件 {file_name} 解析为 HTML 失败，返回值类型为 {type(html)}"
-            logger.error(msg)
-            raise Exception(msg)
+            logger.error(f"文件 {file_name} 解析为 HTML 失败，返回值类型为 {type(html)}")
+            return file_name, ""
         
         return file_name, html
 
@@ -173,7 +186,7 @@ class FileProcessor:
         # 1.给 html 增加 asset 元数据
         html = f"""
         <div>
-            <span style="font-size: 1.2rem;">Source: </span>
+            <span style="font-size: 1.2rem;">Original Full Asset: </span>
             <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
             <span style="color: red;"> (VPN Required)</span>
         </div>
@@ -184,7 +197,7 @@ class FileProcessor:
             {file_content}
         </div>
         <div>
-            <span style="font-size: 1.2rem;">Source: </span>
+            <span style="font-size: 1.2rem;">Original Full Asset: </span>
             <a href="{original_file_url}" style="color: #31c0ff;font-size: 1.2rem;text-decoration: underline;">{original_file_url}</a>
             <span style="color: red;"> (VPN Required)</span>
         </div>
@@ -232,11 +245,13 @@ class FileProcessor:
 
 请开始翻译并脱敏。"""
 
+        response_str = ""
         async for chunk in CallModel().call_llm_model(
-            prompt=prompt_content,
-            model_name=self.llm_model or "gpt-4o-mini",
-            temperature=0.0,
-            stream=False):
+                prompt=prompt_content,
+                model_name=self.llm_model or "gpt-4o-mini",
+                temperature=0.0,
+                stream=True
+            ):
             response_str += chunk
 
         if not response_str:
