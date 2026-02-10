@@ -259,9 +259,14 @@ class FileProcessor:
                     break
                 try:
                     chunk_data = json.loads(json_str)
-                    content = chunk_data["choices"][0]["message"]["content"]
-                    response_str += content
-                except json.JSONDecodeError:
+                    # 安全地提取 content，处理可能的格式差异
+                    choices = chunk_data.get("choices", [])
+                    if choices and len(choices) > 0:
+                        message = choices[0].get("message", {})
+                        content = message.get("content", "")
+                        response_str += content
+                except (json.JSONDecodeError, KeyError, IndexError, TypeError) as e:
+                    logger.debug(f"解析 SSE chunk 失败: {e}, chunk: {raw_chunk[:100]}")
                     continue
 
         if not response_str:
