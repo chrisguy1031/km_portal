@@ -162,6 +162,14 @@
             color: #999;
             font-size: 13px;
         }
+
+        .download-all-btn {
+            background: #28a745;
+        }
+
+        .download-all-btn:hover {
+            background: #218838;
+        }
     </style>
 </head>
 <body>
@@ -169,7 +177,8 @@
         <div class="header">
             <h1>已上传文件列表</h1>
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="搜索文件名..." oninput="filterFiles()">
+                <input type="text" id="localPath" placeholder="本地保存路径 (可选)" style="width: 200px;">
+                <button class="download-all-btn" onclick="downloadAllFiles()">下载全部</button>
                 <button onclick="loadFiles()">刷新</button>
             </div>
             <div class="page-info">共 <span id="fileCount">0</span> 个文件</div>
@@ -279,6 +288,33 @@
                 a.click();
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
+            } catch (error) {
+                alert(`下载错误: ${error.message}`);
+            }
+        }
+
+        async function downloadAllFiles() {
+            const localPath = document.getElementById('localPath').value.trim();
+            const url = localPath
+                ? `/km-portal/download-all?local_path=${encodeURIComponent(localPath)}`
+                : '/km-portal/download-all';
+
+            try {
+                const confirmDownload = confirm(`确定要下载所有文件吗？${localPath ? '\n保存路径: ' + localPath : '\n(未指定保存路径)'}`);
+                if (!confirmDownload) return;
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || '下载失败');
+                }
+
+                const result = await response.json();
+                alert(`下载完成！\n成功: ${result.success_count}\n失败: ${result.fail_count}\n总计: ${result.total}`);
+
+                // 刷新文件列表
+                loadFiles();
             } catch (error) {
                 alert(`下载错误: ${error.message}`);
             }

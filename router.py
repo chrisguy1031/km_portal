@@ -150,9 +150,9 @@ async def reset_processed_flag(offset: int = 0, limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("download-all")
+@router.get("/download-all")
 async def download_all_files(local_path: str):
-    """下载所有文件"""
+    """下载所有文件到指定路径"""
     sp_client = get_sharepoint_client()
 
     # 1. 获取站点信息
@@ -168,14 +168,49 @@ async def download_all_files(local_path: str):
     else:
         sp_client.site_id = site_id
 
-    documents = await get_uploaded_files()
+    # 获取文件列表
+    sp_client.site_id = site_id
+    lists = sp_client.get_lists_with_details()
+    list_id = None
+    for list_info in lists:
+        name = list_info.get('name')
+        if name == "Shared Documents":
+            list_id = list_info.get('id')
+            break
+
+    if not list_id:
+        raise HTTPException(status_code=500, detail="列表 ID 为空，无法获取列表信息")
+
+    # 获取列表中的所有文件
+    items = sp_client.get_list_items(list_id=list_id)
+    if not items:
+        raise HTTPException(status_code=500, detail="获取文件列表失败")
+
+    documents = sp_client.get_file_list(items)
+    success_count = 0
+    fail_count = 0
+
     if documents:
         for document in documents:
             download_url = document.download_url
             if download_url:
-                result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_path)
-                if not result:
-                    logger.error(f"下载文件 {download_url} 失败")
+                try:
+                    result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_path)
+                    if not result:
+                        logger.error(f"下载文件 {download_url} 失败")
+                        fail_count += 1
+                        continue
+                    else:
+                        logger.info(f"下载文件 {download_url} 成功")
+                        success_count += 1
+                except Exception as e:
+                    logger.error(f"下载文件 {download_url} 时发生异常: {e}")
+                    fail_count += 1
                     continue
-                else:
-                    logger.info(f"下载文件 {download_url} 成功")
+
+    return {
+        "message": f"下载完成",
+        "success_count": success_count,
+        "fail_count": fail_count,
+        "total": len(documents) if documents else 0
+    }
