@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from urllib.parse import unquote
-
+from loguru import logger
 from services.km_meta import KMFileMetaService
 from services.sharepoint import get_sharepoint_client
 
@@ -75,8 +76,7 @@ async def get_uploaded_files():
             return documents
         else:
             raise HTTPException(status_code=500, detail="获取文件列表失败")
-        
-        return []
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=e)
 
@@ -84,7 +84,7 @@ async def get_uploaded_files():
 async def download_file(download_url: str):
     """下载文件到内存并返回给浏览器"""
     try:
-        from fastapi.responses import Response
+        
 
         sp_client = get_sharepoint_client()
 
@@ -135,7 +135,7 @@ async def update_asset(asset_id: str):
     """更新 Asset 处理状态"""
     try:
         meta_service = KMFileMetaService()
-        await meta_service.update_asset_metadata(asset_id, processed_flag="N")
+        await meta_service.update_asset_metadata(asset_id, processed_flag="N", sp_file_name="")
         return {"message": "Asset 处理状态更新成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -149,3 +149,33 @@ async def reset_processed_flag(offset: int = 0, limit: int = 10):
         return {"message": f"成功重置 {count} 个 Asset 的处理状态", "count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("download-all")
+async def download_all_files(local_path: str):
+    """下载所有文件"""
+    sp_client = get_sharepoint_client()
+
+    # 1. 获取站点信息
+    response = sp_client.get_sehub_site()
+    site_id = None
+    if response and 'id' in response:
+        site_id = response.get('id')
+    else:
+        raise HTTPException(status_code=500, detail="获取 SEHUB 站点失败")
+
+    if not site_id:
+        raise HTTPException(status_code=500, detail="站点 ID 为空，无法获取驱动器信息")
+    else:
+        sp_client.site_id = site_id
+
+    documents = await get_uploaded_files()
+    if documents:
+        for document in documents:
+            download_url = document.download_url
+            if download_url:
+                result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_path)
+                if not result:
+                    logger.error(f"下载文件 {download_url} 失败")
+                    continue
+                else:
+                    logger.info(f"下载文件 {download_url} 成功")

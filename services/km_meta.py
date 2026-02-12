@@ -1,6 +1,7 @@
 import os
 import base64
 import requests
+from datetime import datetime
 from loguru import logger
 from typing import Any
 from parsers.file_params import AssetMeta
@@ -167,7 +168,7 @@ class KMFileMetaService:
         success_count = 0
         for asset in assets:
             try:
-                await self.update_asset_metadata(asset.asset_id, processed_flag="N")
+                await self.update_asset_metadata(asset.asset_id, processed_flag="N", sp_file_name="")
                 success_count += 1
             except Exception as e:
                 logger.error(f"重置 asset {asset.asset_id} 状态失败: {e}")
@@ -175,7 +176,7 @@ class KMFileMetaService:
         logger.info(f"成功重置 {success_count}/{len(assets)} 个 asset 的状态为 N")
         return success_count
 
-    async def update_asset_metadata(self, asset_id: str, processed_flag: str):
+    async def update_asset_metadata(self, asset_id: str, processed_flag: str, sp_file_name: str):
         """更新 asset 元数据"""
         user = os.getenv("KM_USER")
         password = os.getenv("KM_PASSWORD")
@@ -192,7 +193,9 @@ class KMFileMetaService:
         request_url = url
         json_body = {
             "asset_id": asset_id,
-            "processed": processed_flag
+            "processed": processed_flag,
+            "sp_file_name": sp_file_name,
+            "sp_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         try:
             response = requests.put(request_url, headers=headers, json=json_body)

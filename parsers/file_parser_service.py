@@ -56,7 +56,7 @@ class ParseService:
                 except Exception as e:
                     logger.error(f"Worker-{worker_id} 处理 Asset 出错: {e}")
                     # 确保异常情况下也更新为失败状态
-                    await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F")
+                    await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F", sp_file_name="")
                 finally:
                     # 必须调用 task_done，否则 join() 会阻塞
                     self.file_queue.task_done()
@@ -71,7 +71,7 @@ class ParseService:
         """检查数据库中的新 Asset 并加入队列"""
         try:
             logger.debug("正在检查数据库中的待处理的 Asset...")
-            pending_files = await self.meta_service.retrieve_asset_metadata(offset=0, limit=10, processed_flag="N")
+            pending_files = await self.meta_service.retrieve_asset_metadata(offset=0, limit=10, processed_flag="A")
             logger.debug(f"从数据库中检索到 {len(pending_files)} 个待处理 Asset")
             
             if pending_files:
@@ -82,14 +82,14 @@ class ParseService:
                     try:
                         logger.debug(f"将 Asset {file.asset_id} 加入队列")
                         logger.info(f"更新 Asset {file.asset_id} 的状态为正在处理")
-                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="P")
+                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="P", sp_file_name="")
                         await self.file_queue.put((file))
                         processed_count += 1
 
                     except Exception as e:
                         logger.error(f"将 Asset {file.asset_id} 加入队列失败: {e}")
                         # 加入队列失败时也要标记为失败，避免卡在 P 状态
-                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F")
+                        await self.meta_service.update_asset_metadata(file.asset_id, processed_flag="F", sp_file_name="")
                 
                 logger.info(f"成功将 {processed_count}/{len(pending_files)} 个 Asset 加入队列")
             

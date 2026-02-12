@@ -58,13 +58,14 @@ class FileProcessor:
         try:
             first_result = True
             second_result = True
+            file_name = f"{asset_title}.html" # 默认文件名, 如果没有附件，则使用这个文件名
 
             # 有第一个附件
             if first_sp_url:
                 try:
                     file_name, html = await self._download_and_parse_file(first_sp_url)
                     if not file_name:
-                        file_name = f"asset_{asset_id[:6]}_sp1.html"
+                        file_name = f"{asset_title}_sp1.html"
                     await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {first_sp_url}，asset_id: {asset_id}")
 
@@ -77,7 +78,7 @@ class FileProcessor:
                 try:
                     file_name, html = await self._download_and_parse_file(second_sp_url)
                     if not file_name:
-                        file_name = f"asset_{asset_id[:6]}_sp2.html"
+                        file_name = f"{asset_title}_sp2.html"
                     await self._upload_file(html, asset_head, original_file_url, file_name)
                     logger.info(f"成功处理文件 {second_sp_url}，asset_id: {asset_id}")
 
@@ -88,19 +89,19 @@ class FileProcessor:
             # 没有附件
             if not first_sp_url and not second_sp_url:
                 logger.warning(f"asset {asset_id} 没有有效文件 URL")
-                await self._upload_file("", asset_head, original_file_url, f"asset_{asset_id[:6]}_no_file.html")
+                await self._upload_file("", asset_head, original_file_url, file_name)
             
             # 更新 asset 元数据为已处理
             if first_result and second_result:
-                await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y")
+                await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y", sp_file_name=file_name)
             else:
-                await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
+                await self.meta_service.update_asset_metadata(asset_id, processed_flag="F", sp_file_name="")
 
             logger.info(f"asset {asset_id} 处理完成")
         except Exception as e:
             logger.error(f"处理 asset {asset_id} 时发生错误: {e}")
             # 更新 asset 元数据为处理失败
-            await self.meta_service.update_asset_metadata(asset_id, processed_flag="F")
+            await self.meta_service.update_asset_metadata(asset_id, processed_flag="F", sp_file_name="")
 
     
     async def _download_and_parse_file(self, sp_url: str) -> tuple[str, str]:
