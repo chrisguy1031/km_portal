@@ -135,27 +135,58 @@ class SharePointClient:
         return self.make_request('GET', f'https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives')
     
     def get_list_items(self, list_id: str):
-        """获取列表中的所有项目"""
-        return self.make_request('GET', f'https://graph.microsoft.com/v1.0/sites/{self.site_id}/lists/{list_id}/items')
+        """获取列表中的所有项目（支持分页获取所有项目）"""
+        all_items = []
+        url = f'https://graph.microsoft.com/v1.0/sites/{self.site_id}/lists/{list_id}/items?$top=100'
+
+        while url:
+            response = self.make_request('GET', url)
+            if not response or 'value' not in response:
+                break
+
+            all_items.extend(response['value'])
+
+            # 检查是否有下一页
+            if '@odata.nextLink' in response:
+                url = response['@odata.nextLink']
+            else:
+                break
+
+        return {'value': all_items}
     
     def get_lists(self, filter_system_lists: bool = True):
         """
         获取站点中的所有列表，可选择过滤系统列表
-        
+
         Args:
-            site_id (str): 站点 ID
             filter_system_lists (bool): 是否过滤系统列表，默认为 True
-        
+
         Returns:
             dict: 列表数据
         """
-        lists_data = self.make_request('GET', f'https://graph.microsoft.com/v1.0/sites/{self.site_id}/lists')
-        
+        all_lists = []
+        url = f'https://graph.microsoft.com/v1.0/sites/{self.site_id}/lists?$top=100'
+
+        while url:
+            response = self.make_request('GET', url)
+            if not response or 'value' not in response:
+                break
+
+            all_lists.extend(response['value'])
+
+            # 检查是否有下一页
+            if '@odata.nextLink' in response:
+                url = response['@odata.nextLink']
+            else:
+                break
+
+        lists_data = {'value': all_lists}
+
         if lists_data and filter_system_lists:
             # 过滤掉系统列表
             filtered_lists = self._filter_system_lists(lists_data)
             return filtered_lists
-        
+
         return lists_data
 
     def _filter_system_lists(self, lists_data):
