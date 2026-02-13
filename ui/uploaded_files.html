@@ -295,28 +295,30 @@
 
         async function downloadAllFiles() {
             const localPath = document.getElementById('localPath').value.trim();
-            const url = localPath
-                ? `/km-portal/download-all?local_path=${encodeURIComponent(localPath)}`
-                : '/km-portal/download-all';
+
+            if (!localPath) {
+                alert('请输入保存路径');
+                return;
+            }
+
+            const url = `/km-portal/download-all?local_path=${encodeURIComponent(localPath)}`;
 
             try {
-                const confirmDownload = confirm(`确定要下载所有文件吗？${localPath ? '\n保存路径: ' + localPath : '\n(未指定保存路径)'}`);
+                const confirmDownload = confirm(`确定要下载所有文件吗？\n保存路径: ${localPath}\n\n文件将在后台下载，关闭页面不影响下载进度。`);
                 if (!confirmDownload) return;
 
                 const response = await fetch(url);
 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(errorText || '下载失败');
+                    throw new Error(errorText || '启动下载任务失败');
                 }
 
                 const result = await response.json();
-                alert(`下载完成！\n成功: ${result.success_count}\n失败: ${result.fail_count}\n总计: ${result.total}`);
+                alert(`${result.message}\n\n请查看后台日志了解下载进度。`);
 
-                // 刷新文件列表
-                loadFiles();
             } catch (error) {
-                alert(`下载错误: ${error.message}`);
+                alert(`启动下载错误: ${error.message}`);
             }
         }
 

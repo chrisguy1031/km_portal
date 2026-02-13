@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import Response
 from urllib.parse import unquote
 from loguru import logger
 from services.km_meta import KMFileMetaService
 from services.sharepoint import get_sharepoint_client
+import os
 
 
 router = APIRouter(prefix="/km-portal")
@@ -150,70 +151,86 @@ async def reset_processed_flag(offset: int = 0, limit: int = 10):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
-@router.get("/download-all")
-async def download_all_files(local_path: str):
-    """下载所有文件到指定路径"""
-    sp_client = get_sharepoint_client()
+def _download_all_files_background(local_path: str):
+    """后台下载所有文件的任务"""
+    try:
+        sp_client = get_sharepoint_client()
 
-    # 1. 获取站点信息
-    response = sp_client.get_sehub_site()
-    site_id = None
-    if response and 'id' in response:
-        site_id = response.get('id')
-    else:
-        raise HTTPException(status_code=500, detail="获取 SEHUB 站点失败")
+        # 1. 获取站点信息
+        response = sp_client.get_sehub_site()
+        site_id = None
+        if response and 'id' in response:
+            site_id = response.get('id')
+        else:
+            logger.error("获取 SEHUB 站点失败")
+            return
 
-    if not site_id:
-        raise HTTPException(status_code=500, detail="站点 ID 为空，无法获取驱动器信息")
-    else:
+        if not site_id:
+            logger.error("站点 ID 为空，无法获取驱动器信息")
+            return
+        else:
+            sp_client.site_id = site_id
+
+        # 获取文件列表
         sp_client.site_id = site_id
+        lists = sp_client.get_lists_with_details()
+        list_id = None
+        for list_info in lists:
+            name = list_info.get('name')
+            if name == "Shared Documents":
+                list_id = list_info.get('id')
+                break
 
-    # 获取文件列表
-    sp_client.site_id = site_id
-    lists = sp_client.get_lists_with_details()
-    list_id = None
-    for list_info in lists:
-        name = list_info.get('name')
-        if name == "Shared Documents":
-            list_id = list_info.get('id')
-            break
+        if not list_id:
+            logger.error("列表 ID 为空，无法获取列表信息")
+            return
 
-    if not list_id:
-        raise HTTPException(status_code=500, detail="列表 ID 为空，无法获取列表信息")
+        # 获取列表中的所有文件
+        items = sp_client.get_list_items(list_id=list_id)
+        if not items:
+            logger.error("获取文件列表失败")
+            return
 
-    # 获取列表中的所有文件
-    items = sp_client.get_list_items(list_id=list_id)
-    if not items:
-        raise HTTPException(status_code=500, detail="获取文件列表失败")
+        documents = sp_client.get_file_list(items)
+        success_count = 0
+        fail_count = 0
 
-    documents = sp_client.get_file_list(items)
-    success_count = 0
-    fail_count = 0
+        logger.info(f"开始下载 {len(documents)} 个文件到 {local_path}")
 
-    if documents:
-        for document in documents:
-            download_url = document['download_url']
-            filename = document['name']
-            if download_url:
-                try:
-                    import os
-                    local_file_path = os.path.join(local_path, filename)
-                    result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_file_path)
-                    if not result:
-                        logger.error(f"下载文件 {download_url} 失败")
+        if documents:
+            for document in documents:
+                download_url = document['download_url']
+                filename = document['name']
+                if download_url:
+                    try:
+                        local_file_path = os.path.join(local_path, filename)
+                        result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_file_path)
+                        if not result:
+                            logger.error(f"下载文件 {filename} 失败")
+                            fail_count += 1
+                        else:
+                            logger.info(f"下载文件 {filename} 成功")
+                            success_count += 1
+                    except Exception as e:
+                        logger.error(f"下载文件 {filename} 时发生异常: {e}")
                         fail_count += 1
-                        continue
-                    else:
-                        logger.info(f"下载文件 {download_url} 成功")
-                        success_count += 1
-                except Exception as e:
-                    logger.error(f"下载文件 {download_url} 时发生异常: {e}")
-                    fail_count += 1
-                    continue
+
+        logger.info(f"下载完成！成功: {success_count}, 失败: {fail_count}, 总计: {len(documents)}")
+
+    except Exception as e:
+        logger.error(f"后台下载任务异常: {e}")
+
+
+@router.get("/download-all")
+async def download_all_files(background_tasks: BackgroundTasks, local_path: str):
+    """触发后台下载所有文件到指定路径，立即返回"""
+    if not local_path:
+        raise HTTPException(status_code=400, detail="必须指定保存路径")
+
+    # 添加后台任务
+    background_tasks.add_task(_download_all_files_background, local_path)
 
     return {
-        "message": f"下载完成",
-        "success_count": success_count,
-        "fail_count": fail_count,
-        "total": len(documents) if documents else 0
+        "message": "下载任务已启动，文件将在后台下载完成",
+        "local_path": local_path
     }
