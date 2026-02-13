@@ -192,7 +192,7 @@ async def download_all_files(local_path: str):
 
     if documents:
         for document in documents:
-            download_url = document.download_url
+            download_url = document['download_url']
             if download_url:
                 try:
                     result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_path)
