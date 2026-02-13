@@ -325,7 +325,9 @@ class SharePointClient:
         
         if response and response.status_code == 200: # type: ignore
             # 确保目录存在
-            os.makedirs(os.path.dirname(os.path.abspath(local_save_path)), exist_ok=True)
+            dir_path = os.path.dirname(os.path.abspath(local_save_path))
+            if dir_path:  # 只有当目录路径不为空时才创建
+                os.makedirs(dir_path, exist_ok=True)
             
             with open(local_save_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=1024*1024): # type: ignore

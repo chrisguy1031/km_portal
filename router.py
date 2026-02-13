@@ -193,9 +193,12 @@ async def download_all_files(local_path: str):
     if documents:
         for document in documents:
             download_url = document['download_url']
+            filename = document['name']
             if download_url:
                 try:
-                    result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_path)
+                    import os
+                    local_file_path = os.path.join(local_path, filename)
+                    result = sp_client.download_file(sharepoint_url=download_url, local_save_path=local_file_path)
                     if not result:
                         logger.error(f"下载文件 {download_url} 失败")
                         fail_count += 1
