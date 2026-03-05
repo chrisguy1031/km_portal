@@ -21,6 +21,16 @@
    - 客户姓名 → "XX Customer"
    - 公司名称 → "XX Company"
 4. 上下文判断：只有明确作为客户或敏感实体的名称才脱敏
+5. 当文档中出现以下密钥信息，例如：
+   - 密码（passwords）
+   - 公私钥对（Public-Private key pairs）
+   - 接口密钥（API keys）
+   - 数据库连接字符串（Databaseconnection strings）
+   示例：
+   - "connection.url": "jdbc:oracle:thin:@//10.0.1.104:1521/pdb23ai.sub11140730221.yangluvcn.oraclevcn.com",_x000D_
+   -  "connection.user": "ouser",_x000D_
+   -  "connection.password": "welcome1",_x000D_
+  对上述这类敏感信息进行脱敏处理
 
 **输出要求：**
 - 只输出翻译完成且经过脱敏处理的完整HTML代码
