@@ -27,10 +27,10 @@
    - 接口密钥（API keys）
    - 数据库连接字符串（Databaseconnection strings）
    示例：
-   - "connection.url": "jdbc:oracle:thin:@//10.0.1.104:1521/pdb23ai.sub11140730221.yangluvcn.oraclevcn.com",_x000D_
+   - "connection.url": "jdbc:oracle:thin:@//10.0.1.104:1521/xxx
    -  "connection.user": "ouser",_x000D_
    -  "connection.password": "welcome1",_x000D_
-  对上述这类敏感信息进行脱敏处理
+  对上述这类敏感信息进行脱敏处理，把password，密码，密钥，pwd这样的词语换成pw，然后密码本身换成***
 
 **输出要求：**
 - 只输出翻译完成且经过脱敏处理的完整HTML代码
