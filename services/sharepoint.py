@@ -476,7 +476,7 @@ class SharePointClient:
 
             # 2. 规范化路径：仅使用文件名进行 URL 编码
             encoded_file = quote(file_name)
-            target_path = f"/root:/{encoded_file}:/content"
+            target_path = f"/root:/hub/{encoded_file}:/content"
             upload_url = f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drives/{drive_id}{target_path}"
 
             # 3. 设置必要的 Header
