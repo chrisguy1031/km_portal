@@ -14,72 +14,28 @@ class LogConfig(BaseModel):
     dir: str = Field(default="./logs")
     rotation: str = Field(default="100 MB")
     retention: str = Field(default="10 days")
-    api_log_enabled: bool = Field(default=True, description="是否启用API请求日志记录")
+    api_log_enabled: bool = Field(default=True, description="Whether to enable API request logging")
 
 class AppConfig(BaseModel):
     """主应用配置"""
-    service_name: str = Field(default="main-service")
+    service_name: str = Field(default="km_portal-service")
     service_version: str = Field(default="1.0.0")
     service_host: str = Field(default="0.0.0.0")
-    service_port: int = Field(default=18090, ge=1, le=65535)
-    title: str = Field(default="KBOT")
-    description: str = Field(default="KBot API Service")
+    service_port: int = Field(default=17090, ge=1, le=65535)
+    title: str = Field(default="KM Portal")
+    description: str = Field(default="KM Portal Background Service")
     debug: bool = Field(default=False)
-    file_storage: str = Field(default="./knowledge_base", description="文件存储目录")
-    parser_workers: int = Field(default=2, ge=1, le=20)
-    parser_check_interval: int = Field(default=60, ge=10, le=3600)
+    upload_workers: int = Field(default=2, ge=1, le=20)
+    km_db_check_interval: int = Field(default=60, ge=10, le=3600)
     log: LogConfig = LogConfig()
 
-class LLMConfig(BaseModel):
-    """大语言模型配置"""
-    service_name: str = Field(default="llm-service")
-    service_version: str = Field(default="1.0.0")
-    service_host: str = Field(default="0.0.0.0")
-    service_port: int = Field(default=18091, ge=1, le=65535)
-    timeout: int = Field(default=300, ge=10, le=1800)
-    health_check_timeout: int = Field(default=10, ge=5, le=60)
-    model_name: str = Field(default="llm-model")
-    provider: str = Field(default="openai", description="LLM 服务提供商")
-    api_endpoint: str = Field(default="https://api.openai.com/v1", description="LLM API 端点")
-    max_tokens: int = Field(default=1024, ge=100, le=99999)
-    temperature: float = Field(default=0.0, ge=0.0, le=1.0)
-
-class VLMConfig(BaseModel):
-    """视觉语言模型配置"""
-    service_name: str = Field(default="vlm-service")
-    service_version: str = Field(default="1.0.0")
-    service_host: str = Field(default="0.0.0.0")
-    service_port: int = Field(default=18092, ge=1, le=65535)
-    timeout: int = Field(default=300, ge=10, le=1800)
-    health_check_timeout: int = Field(default=10, ge=5, le=60)
-    model_name: str = Field(default="vlm-model")
-    provider: str = Field(default="openai", description="VLM 服务提供商")
-    api_endpoint: str = Field(default="https://api.openai.com/v1", description="VLM API 端点")
-    max_tokens: int = Field(default=1024, ge=100, le=99999)
-    temperature: float = Field(default=0.0, ge=0.0, le=1.0)
-
-class TokenizerConfig(BaseModel):
-    """分词器配置"""
-    zh: str = Field(default="")
-    en: str = Field(default="")
-
-class ParserConfig(BaseModel):
-    """文档解析器配置"""
-    service_name: str = Field(default="parser-service")
-    service_version: str = Field(default="1.0.0")
-    service_host: str = Field(default="0.0.0.0")
-    service_port: int = Field(default=18093, ge=1, le=65535)
-    timeout: int = Field(default=300, ge=10, le=1800)
-    chunk_size: int = Field(default=512, description="分块大小")
-    overlap: int = Field(default=50, description="分块重叠大小")
-    min_chunk_len: int = Field(default=10, description="最小分块长度")
-    generate_picture_images: bool = Field(default=False, description="是否生成图片描述")
-    do_ocr: bool = Field(default=False, description="是否进行OCR识别")
-    ocr_engine: str | None = Field(default=None, description="OCR引擎名称")
-    images_scale: float = Field(default=2.0, description="图片缩放比例")
-    use_vlm: bool = Field(default=False, description="是否使用VLM生成图片描述")
-    tokenizer: TokenizerConfig = TokenizerConfig()
-
+class KBotConfig(BaseModel):
+    """KBot 配置"""
+    app_id: int = Field(default=1, description="Unique application identifier")
+    domain_id: int = Field(default=1, description="Unique domain identifier")
+    kb_id: int = Field(default=1, description="Unique knowledge base identifier")
+    batch_id: int = Field(default=1, description="Unique batch identifier")
+    upload_api_url: str = Field(default="http://localhost:18090/api/kb/upload", description="KBot upload API URL")
 
 class Settings(BaseSettings):
     """全局配置设置"""
@@ -90,9 +46,7 @@ class Settings(BaseSettings):
     
     # 各模块配置
     app: AppConfig = AppConfig()
-    llm: LLMConfig = LLMConfig()
-    vlm: VLMConfig = VLMConfig()
-    parser: ParserConfig = ParserConfig()
+    kbot: KBotConfig = KBotConfig()
     
     model_config = {
         "env_file": ".env",
@@ -205,14 +159,6 @@ def get_log_config() -> LogConfig:
     """获取日志配置"""
     return get_settings().app.log
 
-def get_llm_config() -> LLMConfig:
-    """获取 LLM 配置"""
-    return get_settings().llm
-
-def get_vlm_config() -> VLMConfig:
-    """获取 VLM 配置"""
-    return get_settings().vlm
-
-def get_parser_config() -> ParserConfig:
-    """获取解析器配置"""
-    return get_settings().parser
+def get_kbot_config() -> KBotConfig:
+    """获取 KBot 配置"""
+    return get_settings().kbot

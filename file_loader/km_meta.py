@@ -4,7 +4,7 @@ import requests
 from datetime import datetime
 from loguru import logger
 from typing import Any
-from parsers.file_params import AssetMeta
+from .file_params import AssetMeta
 
 class KMFileMetaService:
     """文件元数据服务"""

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from fastapi.responses import Response
 from urllib.parse import unquote
 from loguru import logger
-from services.km_meta import KMFileMetaService
+from file_loader.km_meta import KMFileMetaService
 from services.sharepoint import get_sharepoint_client
 import os
 

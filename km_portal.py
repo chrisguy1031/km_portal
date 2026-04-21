@@ -22,7 +22,7 @@ from loguru import logger
 from core.config.settings import get_app_config
 from core.logger import LogConfig, LogManager
 from core.middleware.log_middleware import log_requests
-from parsers.file_parser_manger import FileParserManager
+from file_loader.km_engine import KmEngine
 from router import router
 
 # --- 环境初始化 ---
@@ -34,7 +34,7 @@ load_dotenv(ENV_PATH)
 async def lifespan(app: FastAPI):
     """管理应用程序的生命周期。
 
-    在应用启动时初始化文件解析管理器并启动服务；
+    在应用启动时初始化文件解析引擎并启动服务；
     在应用关闭时确保资源安全回收。
 
     Args:
@@ -44,13 +44,16 @@ async def lifespan(app: FastAPI):
     app.state.service_name = get_app_config().service_name
 
     # 启动阶段
-    fp_manager = FileParserManager()
-    logger.info("正在启动文件解析服务管理器...")
+    # 初始化KM服务引擎
+    worker = get_app_config().upload_workers
+    check_interval = get_app_config().km_db_check_interval
+    km_manager = KmEngine(worker, check_interval)
+    logger.info("正在启动KM服务引擎...")
     try:
-        fp_manager.start_service()
-        logger.info("所有解析子服务已就绪")
+        await km_manager.start()
+        logger.info("所有KM子服务已就绪")
     except Exception as e:
-        logger.error(f"解析服务启动失败: {e}")
+        logger.error(f"KM服务启动失败: {e}")
         # 根据业务需求决定是否在启动失败时退出进程
 
     yield  # 应用运行中
@@ -58,10 +61,10 @@ async def lifespan(app: FastAPI):
     # 关闭阶段
     logger.info("应用正在关闭，执行清理任务...")
     try:
-        fp_manager.shutdown_service("应用程序生命周期结束...")
-        logger.info("解析服务管理器已安全关闭")
+        await km_manager.stop()    
+        logger.info("KM服务引擎已安全关闭")
     except Exception as e:
-        logger.error(f"清理资源时发生异常: {e}")
+        logger.error(f"KM服务清理失败: {e}")
 
 
 def create_app() -> FastAPI:
@@ -88,14 +91,12 @@ def create_app() -> FastAPI:
         logger.debug("正在配置 FastAPI 实例...")
 
         # 2. 实例化应用 (支持离线文档)
-        app = FastAPIOffline(
+        app = FastAPI(
             title=app_config.title,
             description=app_config.description,
             version=app_config.service_version,
             debug=app_config.debug,
-            lifespan=lifespan,  # 注入生命周期管理器
-            docs_url="/docs" if app_config.debug else None,
-            redoc_url="/redoc" if app_config.debug else None,
+            lifespan=lifespan,  # 注入生命周期引擎
         )
 
         # 3. 中间件配置
@@ -109,9 +110,6 @@ def create_app() -> FastAPI:
 
         # 4. 请求日志中间件
         app.middleware("http")(log_requests)
-
-        # 5. 静态文件挂载
-        app.mount("/ui", StaticFiles(directory=str(Path(__file__).parent / "ui")), name="ui")
 
         # 6. 路由注册
         app.include_router(router)

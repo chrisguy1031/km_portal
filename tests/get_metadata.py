@@ -11,7 +11,7 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
 # Use absolute imports from project root
-from services.km_meta import KMFileMetaService
+from file_loader.km_meta import KMFileMetaService
 from services.sharepoint import get_sharepoint_client
 from parsers.file_processor import FileProcessor
 
