@@ -1,62 +1,25 @@
 # core/config/base.toml
 [app]
-service_name = "main-service"
-service_version = "1.0.0"
+service_name = "km_portal-service"
+service_version = "0.2.0"
 service_host = "0.0.0.0"
-service_port = 18090
+service_port = 17090
 title = "KM Portal"
 description = "KM Portal Service"
 debug = true
-file_storage = "/home/ubuntu/km_portal/files/"
-parser_workers = 2
-parser_check_interval = 3600
+upload_workers = 2
+km_db_check_interval = 600
 
 [app.log]
 level = "DEBUG"
-dir = "/home/ubuntu/km_portal/logs/"
+dir = "/home/chris/km_portal/logs/"
 rotation = "100 MB"
 retention = "10 days"
 api_log_enabled = true
 
-[vlm]
-service_name = "vlm-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18092
-timeout = 300
-model_name = "qwen3-vl-plus"
-provider = "api_qwen"
-api_endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-max_tokens = 8192
-temperature = 0.0
-
-[llm]
-service_name = "llm-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18091
-timeout = 300
-model_name = "deepseek-chat"
-provider = "api_deepseek"
-api_endpoint = "https://api.deepseek.com/v1"
-max_tokens = 8192
-temperature = 0.0
-
-[parser]
-service_name = "parser-service"
-service_version = "1.0.0"
-service_host = "0.0.0.0"
-service_port = 18093
-timeout = 300
-chunk_size = 512
-overlap = 50
-min_chunk_len = 10
-generate_picture_images = true
-do_ocr = true
-ocr_engine = "tesseract"
-images_scale = 2.0
-use_vlm = true
-
-[parser.tokenizer]
-en = "/home/ubuntu/models/embedding/bge-small-en-v1.5"
-zh = "/home/ubuntu/models/embedding/bge-base-zh-v1.5"
+[kbot]
+app_id = 112
+domain_id = 1
+kb_id = 1
+batch_id = 1
+upload_api_url = "http://localhost:18090/api/kb/upload"
