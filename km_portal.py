@@ -3,7 +3,7 @@
 本模块负责初始化 FastAPI 应用、加载全局配置、管理文件解析服务的生命周期，
 并启动 Uvicorn 服务器。
 """
-
+import sys
 import asyncio
 import signal
 from pathlib import Path
@@ -46,32 +46,38 @@ async def main():
     
     # 4. 监听退出信号
     stop_event = asyncio.Event()
+    loop = asyncio.get_running_loop()
 
-    def handle_exit(*args):
-        logger.info("收到退出信号，准备关闭服务...")
+    # 定义平滑关闭函数
+    async def shutdown(sig_name):
+        logger.info(f"收到信号 {sig_name}, 准备关闭服务...")
         stop_event.set()
 
-    # 绑定信号
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
+    # 注册信号处理 (适配 Windows 和 Linux)
+    if sys.platform != 'win32':
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, lambda s=sig: asyncio.create_task(shutdown(s.name)))
+    else:
+        # Windows 下 signal 模块仍是首选
+        def handle_exit(*args):
+            # 在同步环境中触发异步事件
+            loop.call_soon_threadsafe(stop_event.set)
+        signal.signal(signal.SIGINT, handle_exit)
+        signal.signal(signal.SIGTERM, handle_exit)
 
     try:
-        logger.info("正在启动 KM 服务引擎...")
         await km_manager.start()
-        logger.info("KM 服务引擎已启动完成，持续运行中...")
-        
-        # 等待退出信号
-        await stop_event.wait()
-
+        await stop_event.wait() # 阻塞点
     except Exception as e:
-        logger.exception(f"服务运行异常: {e}")
-
+        logger.exception(f"运行时异常: {e}")
     finally:
-        # 安全关闭
-        logger.info("正在执行优雅关闭...")
-        if km_manager:
-            await km_manager.stop()
-        logger.info("KM 服务已安全关闭")
+        logger.info("开始执行清理逻辑...")
+        # 强制设置一个超时，防止清理逻辑本身卡死
+        try:
+            await asyncio.wait_for(km_manager.stop(), timeout=10.0)
+        except asyncio.TimeoutError:
+            logger.warning("清理超时，强制退出")
+        logger.info("服务已退出")
 
 
 if __name__ == "__main__":
