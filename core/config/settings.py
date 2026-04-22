@@ -24,7 +24,7 @@ class AppConfig(BaseModel):
     description: str = Field(default="KM Portal Background Service")
     debug: bool = Field(default=False)
     upload_workers: int = Field(default=2, ge=1, le=20)
-    km_db_check_interval: int = Field(default=60, ge=10, le=600)
+    km_db_check_interval: int = Field(default=60, ge=1, le=65536)
     log: LogConfig = LogConfig()
 
 class KBotConfig(BaseModel):
