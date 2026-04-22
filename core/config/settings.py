@@ -20,8 +20,6 @@ class AppConfig(BaseModel):
     """主应用配置"""
     service_name: str = Field(default="km_portal-service")
     service_version: str = Field(default="1.0.0")
-    service_host: str = Field(default="0.0.0.0")
-    service_port: int = Field(default=17090, ge=1, le=65535)
     title: str = Field(default="KM Portal")
     description: str = Field(default="KM Portal Background Service")
     debug: bool = Field(default=False)

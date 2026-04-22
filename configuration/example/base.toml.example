@@ -2,8 +2,6 @@
 [app]
 service_name = "km_portal-service"
 service_version = "0.2.0"
-service_host = "0.0.0.0"
-service_port = 17090
 title = "KM Portal"
 description = "KM Portal Service"
 debug = true

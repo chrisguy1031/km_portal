@@ -3,4 +3,4 @@ fastapi==0.128.0
 loguru==0.7.3
 tomli==2.4.0
 aiohttp==3.13.3
-# weasyprint==68.0
+python-dotenv
