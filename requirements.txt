@@ -2,3 +2,5 @@ loguru==0.7.3
 tomli==2.4.0
 aiohttp==3.13.3
 python-dotenv
+pydantic-settings
+
