@@ -1,4 +1,5 @@
 import json
+import os
 import aiohttp
 from loguru import logger
 from io import BytesIO
@@ -105,6 +106,7 @@ class FileProcessor:
     async def _upload_file(self, file_io: BytesIO, file_name: str, metadata: dict) -> bool:
         """上传文件到 Sharepoint"""
         config = get_kbot_config()
+        upload_key = os.getenv("KBOT_API_KEY")
     
         # 1. 构造整体的 Metadata JSON 字符串
         full_metadata_dict = {
@@ -131,6 +133,9 @@ class FileProcessor:
             content_type='application/octet-stream'
         )
 
+        headers = {
+            "Authorization": f"Bearer {upload_key}"
+        }
         # 3. 发送请求
         timeout = aiohttp.ClientTimeout(total=60)
         try:

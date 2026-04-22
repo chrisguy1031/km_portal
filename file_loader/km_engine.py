@@ -113,8 +113,8 @@ class KmEngine:
             finally:
                 if queue_item:
                     # 无论成功/失败，释放内存锁并标记任务完成
-                    _, _, file_params = queue_item
-                    self.processing_ids.discard(file_params.file_id)
+                    _, km_meta = queue_item
+                    self.processing_ids.discard(km_meta.asset_id)
                     self.queue.task_done()
 
     async def start(self):
