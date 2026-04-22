@@ -136,14 +136,16 @@ class FileProcessor:
         headers = {
             "Authorization": f"Bearer {upload_key}"
         }
+        logger.debug(f"headers: {headers}")
+
         # 3. 发送请求
         timeout = aiohttp.ClientTimeout(total=60)
         try:
             async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(config.upload_api_url, data=data) as response:
+                async with session.post(config.upload_api_url, data=data, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        raise Exception(f"上传文件失败，状态码: {response.status}, 详情: {error_text}")
+                        raise Exception(f"状态码: {response.status}, 详情: {error_text}")
                     
                     logger.info(f"文件 {file_name} 上传成功")
                     return True
