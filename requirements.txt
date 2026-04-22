@@ -1,12 +1,6 @@
-multiprocess==0.70.18
 uvicorn==0.40.0
 fastapi==0.128.0
-fastapi_offline==1.7.6
 loguru==0.7.3
-docling==2.68.0
 tomli==2.4.0
-openai==2.15.0
 aiohttp==3.13.3
-python-multipart==0.0.21
-weasyprint==68.0
-oci==2.165.1
+# weasyprint==68.0
