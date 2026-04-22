@@ -1,6 +1,8 @@
 import json
 import os
+import uuid
 import aiohttp
+from urllib.parse import unquote
 from loguru import logger
 from io import BytesIO
 from fastapi import UploadFile
@@ -59,13 +61,11 @@ class FileProcessor:
                 has_attachments = True
                 try:
                     file_io, file_name = await self._download_file(url)
-                    if not file_io:
-                        raise ValueError(f"下载文件为空: {url}")
-                    
                     await self._upload_file(file_io, file_name or default_name, upload_metadata)
                     logger.info(f"成功处理文件 {url}，asset_id: {asset_id}")
                 except Exception as e:
                     logger.error(f"处理文件 {url} 失败: {e}")
+                    raise e
 
             if not has_attachments:
                 logger.warning(f"Asset {asset_id} 没有附件，跳过附件处理")
@@ -89,21 +89,19 @@ class FileProcessor:
         # 1. 从 Sharepoint 下载文件到内存 (BytesIO 对象)
         try:
             content_io, file_name = sp_client.download_file_to_memory(sp_url)
+
+            if not content_io:
+                raise ValueError(f"下载文件为空: {sp_url}")
+
+            file_name = unquote(file_name)
+
         except Exception as e:
             logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败: {e}")
-            return BytesIO(), ""
-        
-        if not content_io:
-            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败")
-            return BytesIO(), "" # 未下载到文件，返回空二进制流
-
-        if not file_name:
-            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败，文件名为空")
-            return BytesIO(), ""
+            raise e
         
         return content_io, file_name
 
-    async def _upload_file(self, file_io: BytesIO, file_name: str, metadata: dict) -> bool:
+    async def _upload_file(self, file_io: BytesIO, file_name: str, metadata: dict):
         """上传文件到 Sharepoint"""
         config = get_kbot_config()
         upload_key = os.getenv("KBOT_API_KEY")
@@ -136,7 +134,6 @@ class FileProcessor:
         headers = {
             "Authorization": f"Bearer {upload_key}"
         }
-        logger.debug(f"headers: {headers}")
 
         # 3. 发送请求
         timeout = aiohttp.ClientTimeout(total=60)
@@ -148,7 +145,6 @@ class FileProcessor:
                         raise Exception(f"状态码: {response.status}, 详情: {error_text}")
                     
                     logger.info(f"文件 {file_name} 上传成功")
-                    return True
         except Exception as e:
             logger.error(f"上传文件到 KBot 失败: {e}")
-            return False
+            raise e
