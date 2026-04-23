@@ -85,7 +85,7 @@ class KMFileMetaService:
                     "asset_review_date": item.get("asset_review_date", ""),
                     "asset_hours": item.get("asset_hours", ""),
                     "processed": item.get("processed", "N"),
-                    "second_sp_url": item.get("second_sp_url", ""),
+                    # "second_sp_url": item.get("second_sp_url", ""),
                     "first_sp_url": item.get("first_sp_url", ""),
                     "asset_solution": item.get("asset_solution", ""),
                     "asset_product": item.get("asset_product", "")
@@ -120,7 +120,7 @@ class KMFileMetaService:
                 asset_solution = item.get("asset_solution") or ""
                 solution_briefing = item.get("solution_briefing") or ""
                 first_sp_url = item.get("first_sp_url") or ""
-                second_sp_url = item.get("second_sp_url") or ""
+                # second_sp_url = item.get("second_sp_url") or ""
 
                 result = AssetMeta(
                     asset_id=asset_id,
@@ -131,8 +131,8 @@ class KMFileMetaService:
                     asset_solution=asset_solution,
                     asset_details=asset_details,
                     solution_briefing=solution_briefing,
-                    first_sp_url=first_sp_url,
-                    second_sp_url=second_sp_url,
+                    first_sp_url=first_sp_url
+                    # second_sp_url=second_sp_url,
                 )
 
                 results.append(result)

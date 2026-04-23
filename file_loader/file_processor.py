@@ -48,23 +48,26 @@ class FileProcessor:
 
         try:
             # 4. 循环处理多个 SharePoint URL
-            sp_urls = [
-                (item.first_sp_url, f"{asset_title}_sp1.html"),
-                (item.second_sp_url, f"{asset_title}_sp2.html")
-            ]
+            raw_urls = item.first_sp_url.split('^^^') if item.first_sp_url else []
+            # 过滤掉空字符串并去除首尾空格
+            valid_urls = [u.strip() for u in raw_urls if u and u.strip()]
             
             has_attachments = False
-            for url, default_name in sp_urls:
-                if not url:
-                    continue
-                
+            
+            # 循环处理解析出来的每一个 URL
+            for index, url in enumerate(valid_urls, start=1):
                 has_attachments = True
                 try:
+                    # 构造默认文件名，例如 asset_title_1.html, asset_title_2.html
+                    default_name = f"{asset_title}_{index}.html"
+                    
                     file_io, file_name = await self._download_file(url)
+                    # 优先使用下载时获取的文件名，否则使用生成的默认名
                     await self._upload_file(file_io, file_name or default_name, upload_metadata)
-                    logger.info(f"成功处理文件 {url}，asset_id: {asset_id}")
+                    
+                    logger.info(f"成功处理文件 {index}: {url}，asset_id: {asset_id}")
                 except Exception as e:
-                    logger.error(f"处理文件 {url} 失败: {e}")
+                    logger.error(f"处理第 {index} 个文件 {url} 失败: {e}")
                     raise e
 
             if not has_attachments:

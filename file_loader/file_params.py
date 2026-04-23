@@ -10,7 +10,7 @@ class AssetMeta(BaseModel):
     asset_details: str = Field(..., description="Asset 详情")
     solution_briefing: str = Field(..., description="解决方案简介")
     first_sp_url: str | None = Field(None, description="第一个文件下载URL")
-    second_sp_url: str | None = Field(None, description="第二个文件下载URL")
+    # second_sp_url: str | None = Field(None, description="第二个文件下载URL")
 
 class UploadMetadata(BaseModel):
     asset_id: str = Field(..., description="Asset ID")
