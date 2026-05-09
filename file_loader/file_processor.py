@@ -42,8 +42,11 @@ class FileProcessor:
 
         # 3. 构建上传元数据字典
         upload_metadata = {
-            **{k: v for k, v in item.__dict__.items() if not k.startswith('_')},
-            "original_asset_url": f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}"
+            # **{k: v for k, v in item.__dict__.items() if not k.startswith('_')},
+            "asset_id": asset_id,
+            "asset_title": asset_title,
+            "original_asset_url": f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}",
+            "publish_date": item.publish_date or ""
         }
 
         try:
