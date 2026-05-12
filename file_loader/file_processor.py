@@ -61,12 +61,17 @@ class FileProcessor:
             for index, url in enumerate(valid_urls, start=1):
                 has_attachments = True
                 try:
+                    # 使用 .copy() 确保修改当前文件的 URL 时不会影响到后续循环或其他文件
+                    current_file_metadata = upload_metadata.copy()
+                    current_file_metadata["first_sp_url"] = url
+
                     # 构造默认文件名，例如 asset_title_1.html, asset_title_2.html
                     default_name = f"{asset_title}_{index}.html"
                     
                     file_io, file_name = await self._download_file(url)
+
                     # 优先使用下载时获取的文件名，否则使用生成的默认名
-                    await self._upload_file(file_io, file_name or default_name, upload_metadata)
+                    await self._upload_file(file_io, file_name or default_name, current_file_metadata)
                     
                     logger.info(f"成功处理文件 {index}: {url}，asset_id: {asset_id}")
                 except Exception as e:
