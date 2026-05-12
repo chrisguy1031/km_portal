@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 定义服务根目录
-SERVICE_ROOT="$(dirname "$0")"
+SERVICE_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 # 函数：获取当前目录下 km_portal.py 的进程PID
 get_service_pid() {

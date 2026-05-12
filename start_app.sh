@@ -1,8 +1,29 @@
 #!/bin/bash
 
-# Initialize conda environment
-eval "$(conda shell.bash hook)"
+CONDA_BIN_PATH=$(which conda 2>/dev/null)
+
+if [ -z "$CONDA_BIN_PATH" ]; then
+    POSSIBLE_PATHS=("$HOME/anaconda3/bin/conda" "$HOME/miniconda3/bin/conda" "/opt/anaconda3/bin/conda" "/opt/miniconda3/bin/conda")
+    for path in "${POSSIBLE_PATHS[@]}"; do
+        if [ -f "$path" ]; then
+            CONDA_BIN_PATH="$path"
+            break
+        fi
+    done
+fi
+
+if [ -z "$CONDA_BIN_PATH" ]; then
+    echo "❌ Error: Conda command not found. Please ensure conda is installed."
+    exit 1
+fi
+
+CONDA_ROOT=$(dirname "$(dirname "$CONDA_BIN_PATH")")
+
+source "$CONDA_ROOT/etc/profile.d/conda.sh"
+
 conda activate km
+
+# ------------------------------
 
 # Function: start service and check status
 start_service() {
