@@ -122,8 +122,7 @@ class FileProcessor:
             "app_id": config.app_id,
             "domain_id": config.domain_id,
             "kb_id": config.kb_id,
-            "batch_id": config.batch_id,
-            "batch_name": "km_portal",
+            "batch": datetime.now().strftime("%Y%m%d"),
             "overwrite": False,
             "skip_approval": True,
             "biz_metadata": metadata  # 传入的业务元数据作为 biz_metadata 字段

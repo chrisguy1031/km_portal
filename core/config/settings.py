@@ -32,7 +32,6 @@ class KBotConfig(BaseModel):
     app_id: int = Field(default=1, description="Unique application identifier")
     domain_id: int = Field(default=1, description="Unique domain identifier")
     kb_id: int = Field(default=1, description="Unique knowledge base identifier")
-    batch_id: int = Field(default=1, description="Unique batch identifier")
     upload_api_url: str = Field(default="http://localhost:18090/api/kb/upload", description="KBot upload API URL")
 
 class Settings(BaseSettings):
