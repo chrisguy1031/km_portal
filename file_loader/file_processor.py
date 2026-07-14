@@ -124,6 +124,7 @@ class FileProcessor:
             "domain_id": config.domain_id,
             "kb_id": config.kb_id,
             "batch": datetime.now().strftime("%Y%m%d"),
+            "created_time": datetime.now().isoformat(),
             "overwrite": False,
             "skip_approval": True,
             "biz_metadata": metadata  # 传入的业务元数据作为 biz_metadata 字段

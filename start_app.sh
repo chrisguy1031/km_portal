@@ -50,7 +50,7 @@ start_service() {
 }
 
 # Start main program (and wait for full initialization)
-start_service "KBOT3 Main Program" "$(dirname "$0")" "km_portal.py" "true" || exit 1
+start_service "KM Portal Main Program" "$(dirname "$0")" "km_portal.py" "true" || exit 1
 
 echo
 echo "🎉 KM portal service started successfully!"
