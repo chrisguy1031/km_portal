@@ -153,9 +153,12 @@ class FileProcessor:
                 async with session.post(config.upload_api_url, data=data, headers=headers) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        raise Exception(f"状态码: {response.status}, 详情: {error_text}")
+                        raise Exception(f"KBot 返回非 200 状态码: {response.status}, 详情: {error_text}")
                     
                     logger.info(f"文件 {file_name} 上传成功")
         except Exception as e:
-            logger.error(f"上传文件到 KBot 失败: {e}")
+            logger.error(
+                f"上传文件到 KBot 失败: url={config.upload_api_url}, "
+                f"type={type(e).__name__}, msg={e!r}"
+            )
             raise e
