@@ -345,15 +345,21 @@ class SharePointClient:
 
     
     def download_file(self, sharepoint_url: str, local_save_path: str) -> bool:
-        """下载 SharePoint 文件"""
-        # 1. 获取下载 URL
+        """下载 SharePoint 文件，支持 shares 接口 + 路径式兜底"""
+        # 1. 尝试 shares 接口
         download_url = self.get_download_url(sharepoint_url)
-        
-        logger.debug(f"正在请求最终下载链接: {download_url}")
+        logger.debug(f"尝试 shares 接口下载: {download_url}")
 
-        # 2. 直接执行请求
         response = self.make_request('GET', download_url, stream=True)
-        
+
+        # 2. 兜底：shares 失败则尝试路径式下载
+        if not response:
+            logger.warning(f"shares 接口失败，尝试路径式下载: {sharepoint_url}")
+            download_url = self._get_download_url_via_path(sharepoint_url)
+            if download_url:
+                logger.debug(f"尝试路径接口下载: {download_url}")
+                response = self.make_request('GET', download_url, stream=True)
+
         if response and response.status_code == 200: # type: ignore
             # 确保目录存在
             dir_path = os.path.dirname(os.path.abspath(local_save_path))
@@ -364,24 +370,33 @@ class SharePointClient:
                 for chunk in response.iter_content(chunk_size=1024*1024): # type: ignore
                     if chunk: f.write(chunk)
             return True
+
+        logger.error(f"下载最终失败, URL: {sharepoint_url}")
         return False
 
 
     def download_file_to_memory(self, sharepoint_url: str):
         """
-        下载文件并返回 (BytesIO, filename)
+        下载文件并返回 (BytesIO, filename)，支持 shares 接口 + 路径式兜底
         """
-        # 1. 获取下载 URL
+        # 1. 尝试 shares 接口
         download_url = self.get_download_url(sharepoint_url)
+        logger.debug(f"尝试 shares 接口下载: {download_url}")
 
-        # 这里的 make_request 应该返回原始的 requests.Response 对象
-        # 或者确保你能拿到 headers
         response = self.make_request('GET', download_url, stream=True)
 
+        # 2. 兜底：shares 失败则尝试路径式下载
+        if not response:
+            logger.warning(f"shares 接口失败，尝试路径式下载: {sharepoint_url}")
+            download_url = self._get_download_url_via_path(sharepoint_url)
+            if download_url:
+                logger.debug(f"尝试路径接口下载: {download_url}")
+                response = self.make_request('GET', download_url, stream=True)
+
         if not response: # type: ignore
-            raise Exception("下载失败: 无响应")
+            raise Exception(f"下载失败: 无响应, src_url: {sharepoint_url}")
         if response.status_code != 200: # type: ignore
-            raise Exception(f"下载失败: {response.status_code}") # type: ignore
+            raise Exception(f"下载失败: HTTP {response.status_code}, src_url: {sharepoint_url}") # type: ignore
 
         # 从 Header 提取文件名
         cd = response.headers.get('Content-Disposition', '') # type: ignore
@@ -573,12 +588,13 @@ class SharePointClient:
         if not sharepoint_url:
             return ""
 
-        # 1. 预处理：去除多余空格，但不进行 unquote
-        # 注意：保持原始 URL 编码状态进行 Base64 转换是官方推荐做法
-        target_url = sharepoint_url.strip()
+        # 1. 预处理：去除空格，先做百分号解码
+        # Microsoft Graph /shares 接口要求 shareId 是解码后规范 URL 的 base64
+        # 若直接对含 %20、%2F、中文编码的 URL 做 base64，Graph 无法解析为 driveItem
+        target_url = unquote(sharepoint_url.strip())
 
         # 2. 生成通用 Share ID (u! 格式)
-        # 这种方式对 'Doc.aspx'、'Shared%20Documents' 以及 'Share ID' 链接全部有效
+        # 这种方式对 'Doc.aspx'、'Shared Documents' 以及 'Share ID' 链接全部有效
         url_bytes = target_url.encode("utf-8")
         base64_bytes = base64.urlsafe_b64encode(url_bytes)
         base64_string = base64_bytes.decode("ascii").rstrip("=")
@@ -587,6 +603,38 @@ class SharePointClient:
         # 3. 返回 API 地址
         # 使用 /driveItem/content 会直接重定向到文件的二进制下载流
         return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
+
+    def _get_download_url_via_path(self, sharepoint_url: str) -> str:
+        """
+        兜底方案：从 SharePoint URL 中提取文件路径，构造路径式下载链接。
+        适用于非分享链接的直接 URL（含 /Shared Documents/ 路径）。
+        """
+        if not sharepoint_url:
+            return ""
+
+        # 解码 URL
+        decoded_url = unquote(sharepoint_url.strip())
+
+        # 尝试提取 /Shared Documents/ 之后的相对路径
+        match = re.search(r'/Shared Documents/(.+?)(?:\?|$)', decoded_url, re.I)
+        if not match:
+            # 尝试匹配单数形式 /Shared Document/
+            match = re.search(r'/Shared Document/(.+?)(?:\?|$)', decoded_url, re.I)
+        if not match:
+            # 尝试匹配 /sites/{site}/ 之后的路径段
+            match = re.search(r'/sites/[^/]+/(.+?)(?:\?|$)', decoded_url, re.I)
+
+        if match:
+            relative_path = match.group(1).strip('/')
+        else:
+            logger.warning(f"无法从 URL 提取文件路径，路径兜底失败: {sharepoint_url}")
+            return ""
+
+        # 重新编码路径（保留斜杠）
+        encoded_path = quote(relative_path, safe='/')
+
+        # 使用站点默认 drive 端点
+        return f"https://graph.microsoft.com/v1.0/sites/{self.site_id}/drive/root:/{encoded_path}:/content"
 
 """获取 SharePoint 客户端实例（惰性初始化）"""
 

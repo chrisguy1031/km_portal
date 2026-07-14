@@ -48,7 +48,8 @@ class FileProcessor:
             "asset_title": asset_title,
             "original_asset_url": f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}",
             "author_mail": item.author_mail or "",
-            "create_time": item.create_time or ""
+            "create_time": item.create_time or "",
+            "first_sp_url": item.first_sp_url or ""
         }
 
         try:
@@ -58,7 +59,8 @@ class FileProcessor:
             valid_urls = [u.strip() for u in raw_urls if u and u.strip()]
             
             has_attachments = False
-            
+            success_count = 0
+
             # 循环处理解析出来的每一个 URL
             for index, url in enumerate(valid_urls, start=1):
                 has_attachments = True
@@ -76,12 +78,14 @@ class FileProcessor:
                     await self._upload_file(file_io, file_name or default_name, current_file_metadata)
                     
                     logger.info(f"成功处理文件 {index}: {url}，asset_id: {asset_id}")
+                    success_count += 1
                 except Exception as e:
-                    logger.error(f"处理第 {index} 个文件 {url} 失败: {e}")
-                    raise e
+                    logger.warning(f"第 {index} 个附件下载失败，跳过: {url}, 原因: {e}")
 
             if not has_attachments:
                 logger.warning(f"Asset {asset_id} 没有附件，跳过附件处理")
+            elif success_count == 0:
+                logger.warning(f"Asset {asset_id} 全部附件下载失败（共 {len(valid_urls)} 个），按无附件方式处理")
 
             # 5. 上传生成的 Markdown 文档
             await self._upload_file(BytesIO(asset_doc.encode()), f"{asset_title}.md", upload_metadata)
@@ -109,7 +113,7 @@ class FileProcessor:
             file_name = unquote(file_name)
 
         except Exception as e:
-            logger.error(f"从 Sharepoint 下载文件 {sp_url} 失败: {e}")
+            logger.warning(f"从 Sharepoint 下载文件 {sp_url} 失败: {e}")
             raise e
         
         return content_io, file_name
