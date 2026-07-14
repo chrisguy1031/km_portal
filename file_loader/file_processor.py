@@ -47,7 +47,8 @@ class FileProcessor:
             "asset_id": asset_id,
             "asset_title": asset_title,
             "original_asset_url": f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}",
-            "publish_date": item.publish_date or ""
+            "author_mail": item.author_mail or "",
+            "create_time": item.create_time or ""
         }
 
         try:

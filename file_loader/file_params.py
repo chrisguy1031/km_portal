@@ -9,7 +9,8 @@ class AssetMeta(BaseModel):
     asset_solution: str = Field(..., description="Asset 解决方案")
     asset_details: str = Field(..., description="Asset 详情")
     solution_briefing: str = Field(..., description="解决方案简介")
-    publish_date: str | None = Field(None, description="发布日期")
+    author_mail: str | None = Field(None, description="作者邮箱")
+    create_time: str | None = Field(None, description="创建时间")
     first_sp_url: str | None = Field(None, description="第一个文件下载URL")
     # second_sp_url: str | None = Field(None, description="第二个文件下载URL")
 

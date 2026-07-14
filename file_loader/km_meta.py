@@ -119,7 +119,8 @@ class KMFileMetaService:
                 industry_id = item.get("industry_id") or ""
                 asset_solution = item.get("asset_solution") or ""
                 solution_briefing = item.get("solution_briefing") or ""
-                publish_date = item.get("publish_date", "")
+                author_mail = item.get("author_mail", "")
+                create_time = item.get("create_time", "")
                 first_sp_url = item.get("first_sp_url") or ""
                 # second_sp_url = item.get("second_sp_url") or ""
 
@@ -132,7 +133,8 @@ class KMFileMetaService:
                     asset_solution=asset_solution,
                     asset_details=asset_details,
                     solution_briefing=solution_briefing,
-                    publish_date=publish_date,
+                    author_mail=author_mail,
+                    create_time=create_time,
                     first_sp_url=first_sp_url
                     # second_sp_url=second_sp_url,
                 )
