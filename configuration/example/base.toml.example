@@ -15,9 +15,11 @@ rotation = "100 MB"
 retention = "10 days"
 api_log_enabled = true
 
-[kbot]
-app_id = 112
+[knowledge_core]
 domain_id = 1
-kb_id = 1
-batch_id = 1
-upload_api_url = "http://localhost:18090/api/kb/upload"
+collection_key = "assets"
+base_url = "http://localhost:18090"
+default_security_level = 1
+ingestion_mode = "v2"
+connect_timeout_seconds = 10
+request_timeout_seconds = 300

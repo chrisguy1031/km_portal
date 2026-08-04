@@ -1,170 +1,237 @@
+"""Build and submit one Knowledge Core bundle for each Metadb Asset."""
+import asyncio
+import hashlib
 import json
-import os
-import uuid
-from datetime import datetime
-import aiohttp
-from urllib.parse import unquote
+import mimetypes
+import tempfile
+from pathlib import Path
+from typing import Any
+from urllib.parse import unquote, urlsplit, urlunsplit
+
 from loguru import logger
-from io import BytesIO
-from fastapi import UploadFile
-from .file_params import AssetMeta
-from services.sharepoint import get_sharepoint_client
+
+from core.config.settings import get_knowledge_core_config
+from file_loader.file_params import AssetMeta, AttachmentFailure, DownloadedAttachment
 from file_loader.km_meta import KMFileMetaService
-from core.config.settings import get_kbot_config
+from services.knowledge_core import KnowledgeCoreClient, KnowledgeCoreClientError
+from services.sharepoint import get_sharepoint_client
+
+
+class AssetInputError(ValueError):
+    """A permanent source/configuration error that requires operator action."""
 
 
 class FileProcessor:
-    """文件处理类，负责文件解析和处理的业务逻辑"""
+    """Coordinates SharePoint download, Bundle construction and KC acceptance."""
+
     def __init__(self):
         self.meta_service = KMFileMetaService()
+        self.kc_config = get_knowledge_core_config()
+        self.kc_client = KnowledgeCoreClient(self.kc_config)
 
     async def process_asset(self, item: AssetMeta):
-        """
-        处理单个 asset 元数据
-        """
-        # 1. 结构化元数据提取
-        # 使用 item.__dict__ 或直接引用 item 属性，减少 10 行冗余赋值
         asset_id = item.asset_id
-        asset_title = item.asset_title or "Untitled_Asset"
-        
-        # 2. 巧妙构建 Markdown 文档
-        # 使用列表推导式过滤空值，不仅代码简洁，性能也更好
-        fields = {
-            "Solution": item.asset_solution,
-            "Product": item.asset_product,
-            "Industry": item.industry_id,
-            "Type": item.sub_type,
-            "Details": item.asset_details,
-            "Solution Briefing": item.solution_briefing
-        }
-        header = f"## {asset_title}\n\n"
-        body = "\n\n".join([f"**{k}:** {v}" for k, v in fields.items() if v])
-        asset_doc = header + body
-
-        # 3. 构建上传元数据字典
-        upload_metadata = {
-            # **{k: v for k, v in item.__dict__.items() if not k.startswith('_')},
-            "asset_id": asset_id,
-            "asset_title": asset_title,
-            "original_asset_url": f"https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:{asset_id}",
-            "author_mail": item.author_mail or "",
-            "create_time": item.create_time or "",
-            "first_sp_url": item.first_sp_url or ""
-        }
-
         try:
-            # 4. 循环处理多个 SharePoint URL
-            raw_urls = item.first_sp_url.split('^^^') if item.first_sp_url else []
-            # 过滤掉空字符串并去除首尾空格
-            valid_urls = [u.strip() for u in raw_urls if u and u.strip()]
-            
-            has_attachments = False
-            success_count = 0
+            if not item.last_update_time:
+                raise AssetInputError("Metadb last_update_time is required as source_revision")
 
-            # 循环处理解析出来的每一个 URL
-            for index, url in enumerate(valid_urls, start=1):
-                has_attachments = True
-                try:
-                    # 使用 .copy() 确保修改当前文件的 URL 时不会影响到后续循环或其他文件
-                    current_file_metadata = upload_metadata.copy()
-                    current_file_metadata["first_sp_url"] = url
+            with tempfile.TemporaryDirectory(prefix=f"km_asset_{self._safe_name(asset_id)}_") as temp_dir:
+                attachments, failures = await self._download_attachments(item, Path(temp_dir))
+                bundle = self._build_bundle(item)
+                idempotency_key = self._idempotency_key(bundle, attachments, failures)
+                acceptance = await self.kc_client.accept_km_asset(
+                    bundle=bundle,
+                    attachments=attachments,
+                    failures=failures,
+                    idempotency_key=idempotency_key,
+                )
 
-                    # 构造默认文件名，例如 asset_title_1.html, asset_title_2.html
-                    default_name = f"{asset_title}_{index}.html"
-                    
-                    file_io, file_name = await self._download_file(url)
-
-                    # 优先使用下载时获取的文件名，否则使用生成的默认名
-                    await self._upload_file(file_io, file_name or default_name, current_file_metadata)
-                    
-                    logger.info(f"成功处理文件 {index}: {url}，asset_id: {asset_id}")
-                    success_count += 1
-                except Exception as e:
-                    logger.warning(f"第 {index} 个附件下载失败，跳过: {url}, 原因: {e}")
-
-            if not has_attachments:
-                logger.warning(f"Asset {asset_id} 没有附件，跳过附件处理")
-            elif success_count == 0:
-                logger.warning(f"Asset {asset_id} 全部附件下载失败（共 {len(valid_urls)} 个），按无附件方式处理")
-
-            # 5. 上传生成的 Markdown 文档
-            await self._upload_file(BytesIO(asset_doc.encode()), f"{asset_title}.md", upload_metadata)
-
-            # 6. 更新状态
-            await self.meta_service.update_asset_metadata(asset_id, processed_flag="Y", sp_file_name="")
-            logger.info(f"Asset {asset_id} 处理完成")
-
-        except Exception as e:
-            logger.error(f"处理 Asset {asset_id} 关键流程出错: {e}")
+            await self.meta_service.update_asset_metadata(
+                asset_id, processed_flag="Y", sp_file_name=""
+            )
+            logger.info(
+                "Asset accepted by Knowledge Core: asset_id={}, bundle_id={}, revision_id={}",
+                asset_id,
+                acceptance.get("bundle_id"),
+                acceptance.get("bundle_revision_id"),
+            )
+        except KnowledgeCoreClientError as exc:
+            if exc.retryable:
+                logger.warning(
+                    "KC temporarily unavailable; keep asset pending: asset_id={}, status={}, code={}",
+                    asset_id, exc.status_code, exc.code,
+                )
+                return
+            logger.error(
+                "KC permanently rejected asset: asset_id={}, status={}, code={}",
+                asset_id, exc.status_code, exc.code,
+            )
             await self.meta_service.update_asset_metadata(asset_id, processed_flag="F", sp_file_name="")
+        except AssetInputError as exc:
+            logger.error("Invalid Asset source data: asset_id={}, reason={}", asset_id, exc)
+            await self.meta_service.update_asset_metadata(asset_id, processed_flag="F", sp_file_name="")
+        except Exception as exc:
+            logger.exception(
+                "Unexpected Asset processing failure; keep pending for retry: asset_id={}, type={}",
+                asset_id, type(exc).__name__,
+            )
 
-    
-    async def _download_file(self, sp_url: str) -> tuple[BytesIO, str]:
-        """异步下载 Sharepoint 文件"""
+    async def _download_attachments(
+        self, item: AssetMeta, temp_dir: Path
+    ) -> tuple[list[DownloadedAttachment], list[AttachmentFailure]]:
+        attachments: list[DownloadedAttachment] = []
+        failures: list[AttachmentFailure] = []
+        urls = [url.strip() for url in (item.first_sp_url or "").split("^^^") if url.strip()]
         sp_client = get_sharepoint_client()
-        
-        # 1. 从 Sharepoint 下载文件到内存 (BytesIO 对象)
-        try:
-            content_io, file_name = sp_client.download_file_to_memory(sp_url)
 
-            if not content_io:
-                raise ValueError(f"下载文件为空: {sp_url}")
+        for ordinal, source_url in enumerate(urls):
+            graph_item = await asyncio.to_thread(sp_client.get_drive_item_metadata, source_url)
+            external_document_id, filename, declared_mime_type = self._attachment_identity(
+                source_url, graph_item, ordinal
+            )
+            target_path = temp_dir / f"{ordinal:04d}_{self._safe_name(filename)}"
+            try:
+                downloaded = await asyncio.to_thread(
+                    sp_client.download_file, source_url, str(target_path)
+                )
+                if not downloaded or not target_path.is_file():
+                    raise RuntimeError("sharepoint_download_failed")
+                content_sha256, byte_size = await asyncio.to_thread(self._file_digest, target_path)
+                attachments.append(
+                    DownloadedAttachment(
+                        part_name=f"attachment_{ordinal}",
+                        external_document_id=external_document_id,
+                        source_url=source_url,
+                        declared_name=filename,
+                        declared_mime_type=declared_mime_type,
+                        ordinal=ordinal,
+                        file_path=target_path,
+                        byte_size=byte_size,
+                        content_sha256=content_sha256,
+                    )
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Attachment download failed; report it to KC: asset_id={}, ordinal={}, type={}",
+                    item.asset_id, ordinal, type(exc).__name__,
+                )
+                failures.append(
+                    AttachmentFailure(
+                        external_document_id=external_document_id,
+                        source_url=source_url,
+                        declared_name=filename,
+                        ordinal=ordinal,
+                        failure_code="SOURCE_DOWNLOAD_FAILED",
+                    )
+                )
+        return attachments, failures
 
-            file_name = unquote(file_name)
-
-        except Exception as e:
-            logger.warning(f"从 Sharepoint 下载文件 {sp_url} 失败: {e}")
-            raise e
-        
-        return content_io, file_name
-
-    async def _upload_file(self, file_io: BytesIO, file_name: str, metadata: dict):
-        """上传文件到 Sharepoint"""
-        config = get_kbot_config()
-        upload_key = os.getenv("KBOT_API_KEY")
-    
-        # 1. 构造整体的 Metadata JSON 字符串
-        full_metadata_dict = {
-            "app_id": config.app_id,
-            "domain_id": config.domain_id,
-            "kb_id": config.kb_id,
-            "batch": datetime.now().strftime("%Y%m%d"),
-            "created_time": datetime.now().isoformat(),
-            "overwrite": False,
-            "skip_approval": True,
-            "biz_metadata": metadata  # 传入的业务元数据作为 biz_metadata 字段
+    def _build_bundle(self, item: AssetMeta) -> dict[str, Any]:
+        title = item.asset_title.strip() if item.asset_title else "Untitled Asset"
+        facets = {
+            key: value
+            for key, value in {
+                "product": item.asset_product,
+                "sub_type": item.sub_type,
+                "industry": item.industry_id,
+                "solution": item.asset_solution,
+                "language": item.asset_language,
+                "asset_type": item.asset_type,
+                "content_category": item.content_category,
+                "pillar": item.pillar,
+                "pillar_category": item.pillar_category,
+            }.items()
+            if value
+        }
+        metadata = item.model_dump(mode="json")
+        return {
+            "source_id": item.asset_id,
+            "source_revision": item.last_update_time,
+            "title": title,
+            "canonical_url": (
+                "https://apex.oraclecorp.com/pls/apex/f?p=2018:130:::::P130_ASSET_ID:"
+                f"{item.asset_id}"
+            ),
+            "security_level": self.kc_config.default_security_level,
+            "facet": facets,
+            "metadata": metadata,
         }
 
-        data = aiohttp.FormData()
-        data.add_field("metadata", json.dumps(full_metadata_dict))
+    @staticmethod
+    def _idempotency_key(
+        bundle: dict[str, Any],
+        attachments: list[DownloadedAttachment],
+        failures: list[AttachmentFailure],
+    ) -> str:
+        request_shape = {
+            "source_id": bundle["source_id"],
+            "source_revision": bundle["source_revision"],
+            "attachments": [
+                {
+                    "external_document_id": item.external_document_id,
+                    "ordinal": item.ordinal,
+                    "byte_size": item.byte_size,
+                    "content_sha256": item.content_sha256,
+                }
+                for item in attachments
+            ],
+            "failures": [
+                {
+                    "external_document_id": item.external_document_id,
+                    "ordinal": item.ordinal,
+                    "failure_code": item.failure_code,
+                }
+                for item in failures
+            ],
+        }
+        raw = json.dumps(request_shape, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return f"km-{hashlib.sha256(raw.encode('utf-8')).hexdigest()}"
 
-        # 2. 关键：将 BytesIO 包装为文件上传
-        # 确保指针在开头
-        file_io.seek(0)
-        data.add_field(
-            'files',           # 对应 FastAPI 接口中的参数名
-            file_io, 
-            filename=file_name, 
-            content_type='application/octet-stream'
+    @staticmethod
+    def _file_digest(file_path: Path) -> tuple[str, int]:
+        digest = hashlib.sha256()
+        byte_size = 0
+        with file_path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+                byte_size += len(chunk)
+        return digest.hexdigest(), byte_size
+
+    @staticmethod
+    def _external_document_id(source_url: str) -> str:
+        parsed = urlsplit(source_url.strip())
+        normalized = urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), unquote(parsed.path), "", ""))
+        return f"urlsha256:{hashlib.sha256(normalized.encode('utf-8')).hexdigest()}"
+
+    @classmethod
+    def _attachment_identity(
+        cls, source_url: str, graph_item: dict[str, Any] | None, ordinal: int
+    ) -> tuple[str, str, str]:
+        """Prefer Graph DriveItem identity; use a stable URL fallback otherwise."""
+        if graph_item:
+            item_id = graph_item.get("id")
+            drive_id = (graph_item.get("parentReference") or {}).get("driveId")
+            if item_id and drive_id:
+                filename = graph_item.get("name") or cls._filename_from_url(source_url, ordinal)
+                mime_type = (graph_item.get("file") or {}).get("mimeType")
+                return (
+                    f"driveitem:{drive_id}:{item_id}",
+                    filename,
+                    mime_type or mimetypes.guess_type(filename)[0] or "application/octet-stream",
+                )
+        filename = cls._filename_from_url(source_url, ordinal)
+        return (
+            cls._external_document_id(source_url),
+            filename,
+            mimetypes.guess_type(filename)[0] or "application/octet-stream",
         )
 
-        headers = {
-            "Authorization": f"Bearer {upload_key}"
-        }
+    @staticmethod
+    def _filename_from_url(source_url: str, ordinal: int) -> str:
+        parsed = urlsplit(source_url)
+        candidate = Path(unquote(parsed.path)).name
+        return candidate or f"attachment_{ordinal}"
 
-        # 3. 发送请求
-        timeout = aiohttp.ClientTimeout(total=60)
-        try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.post(config.upload_api_url, data=data, headers=headers) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        raise Exception(f"KBot 返回非 200 状态码: {response.status}, 详情: {error_text}")
-                    
-                    logger.info(f"文件 {file_name} 上传成功")
-        except Exception as e:
-            logger.error(
-                f"上传文件到 KBot 失败: url={config.upload_api_url}, "
-                f"type={type(e).__name__}, msg={e!r}"
-            )
-            raise e
+    @staticmethod
+    def _safe_name(value: str) -> str:
+        return "".join(char if char.isalnum() or char in {"-", "_", "."} else "_" for char in value)

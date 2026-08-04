@@ -604,6 +604,23 @@ class SharePointClient:
         # 使用 /driveItem/content 会直接重定向到文件的二进制下载流
         return f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem/content"
 
+    def get_drive_item_metadata(self, sharepoint_url: str) -> dict[str, Any] | None:
+        """Return stable Graph identity and file metadata for a SharePoint URL.
+
+        This is best-effort: callers must retain URL-hash fallback because some
+        legacy links cannot be resolved through the Graph shares endpoint.
+        """
+        if not sharepoint_url:
+            return None
+        target_url = unquote(sharepoint_url.strip())
+        share_id = "u!" + base64.urlsafe_b64encode(target_url.encode("utf-8")).decode("ascii").rstrip("=")
+        url = (
+            f"https://graph.microsoft.com/v1.0/shares/{share_id}/driveItem"
+            "?$select=id,name,file,parentReference,webUrl"
+        )
+        response = self.make_request("GET", url)
+        return response if isinstance(response, dict) else None
+
     def _get_download_url_via_path(self, sharepoint_url: str) -> str:
         """
         兜底方案：从 SharePoint URL 中提取文件路径，构造路径式下载链接。

@@ -27,12 +27,15 @@ class AppConfig(BaseModel):
     km_db_check_interval: int = Field(default=60, ge=1, le=65536)
     log: LogConfig = LogConfig()
 
-class KBotConfig(BaseModel):
-    """KBot 配置"""
-    app_id: int = Field(default=1, description="Unique application identifier")
+class KnowledgeCoreConfig(BaseModel):
+    """Knowledge Core V2 intake configuration."""
     domain_id: int = Field(default=1, description="Unique domain identifier")
-    kb_id: int = Field(default=1, description="Unique knowledge base identifier")
-    upload_api_url: str = Field(default="http://localhost:18090/api/kb/upload", description="KBot upload API URL")
+    collection_key: str = Field(default="assets", min_length=1, description="Target KC collection key")
+    base_url: str = Field(default="http://localhost:18090", description="Knowledge Core base URL")
+    default_security_level: int = Field(default=1, ge=0, le=999)
+    ingestion_mode: str = Field(default="v2", pattern="^v2$")
+    connect_timeout_seconds: int = Field(default=10, ge=1)
+    request_timeout_seconds: int = Field(default=300, ge=1)
 
 class Settings(BaseSettings):
     """全局配置设置"""
@@ -43,7 +46,7 @@ class Settings(BaseSettings):
     
     # 各模块配置
     app: AppConfig = AppConfig()
-    kbot: KBotConfig = KBotConfig()
+    knowledge_core: KnowledgeCoreConfig = KnowledgeCoreConfig()
     
     model_config = {
         "env_file": ".env",
@@ -156,6 +159,6 @@ def get_log_config() -> LogConfig:
     """获取日志配置"""
     return get_settings().app.log
 
-def get_kbot_config() -> KBotConfig:
-    """获取 KBot 配置"""
-    return get_settings().kbot
+def get_knowledge_core_config() -> KnowledgeCoreConfig:
+    """获取 Knowledge Core V2 配置"""
+    return get_settings().knowledge_core

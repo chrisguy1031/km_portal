@@ -121,6 +121,7 @@ class KMFileMetaService:
                 solution_briefing = item.get("solution_briefing") or ""
                 author_mail = item.get("author_mail", "")
                 create_time = item.get("create_time", "")
+                last_update_time = item.get("last_update_time", "")
                 first_sp_url = item.get("first_sp_url") or ""
                 # second_sp_url = item.get("second_sp_url") or ""
 
@@ -135,7 +136,13 @@ class KMFileMetaService:
                     solution_briefing=solution_briefing,
                     author_mail=author_mail,
                     create_time=create_time,
-                    first_sp_url=first_sp_url
+                    last_update_time=last_update_time,
+                    first_sp_url=first_sp_url,
+                    asset_language=item.get("asset_language", ""),
+                    asset_type=item.get("asset_type", ""),
+                    content_category=item.get("content_category", ""),
+                    pillar=item.get("pillar", ""),
+                    pillar_category=item.get("pillar_category", ""),
                     # second_sp_url=second_sp_url,
                 )
 
